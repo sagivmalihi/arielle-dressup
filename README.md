@@ -3,6 +3,8 @@
 A dress-up and character-design game in anime style, designed by Arielle and her dad.
 Hebrew, RTL, made for an iPad in landscape and for a laptop.
 
+Play: https://sagivmalihi.github.io/arielle-dressup/
+
 It is a static web app with no build step and no backend: open `index.html`, or serve the
 folder from any static host. Stars, purchases and the gallery are saved in the browser
 (`localStorage`), so they do not sync between devices.
@@ -17,9 +19,9 @@ lines up on every height and build.
 | `js/util.js` | colors, special fills (rainbow, glitter…), path helpers |
 | `js/rig.js` | the body template and garment builders |
 | `js/body.js`, `js/face.js`, `js/hair.js` | skin, eyes, brows, mouths, makeup, hairstyles |
-| `js/clothes.js`, `js/feet.js`, `js/acc-head.js`, `js/acc-body.js` | the items |
-| `js/backgrounds.js` | the scenes |
-| `js/catalog.js` | item registry, palette, round themes, the base girls |
+| `js/clothes*.js`, `js/dresses2.js`, `js/feet*.js`, `js/acc-head*.js`, `js/acc-body*.js` | the items |
+| `js/backgrounds*.js` | the scenes |
+| `js/catalog.js` | item registry, palette, the challenges (places and styles), the base girls, body colors |
 | `js/render.js` | layer order, the card, thumbnails |
 | `js/score.js` | the "סיימתי" rating and the "invested" rule |
 | `js/store.js`, `js/sound.js`, `js/app.js` | saving, sound effects, screens |
@@ -27,3 +29,5 @@ lines up on every height and build.
 To add an item, add an object to one of the `DU.addItems([...])` lists: `id`, `slot`,
 Hebrew `name`, theme `tags`, `price` (0 = free, more = shop), `color`, and a `draw(R, P, ctx)`
 that returns SVG.
+
+When you publish a change, bump the `?v=` number on the assets in `index.html` so devices fetch the new files.

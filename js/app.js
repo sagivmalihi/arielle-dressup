@@ -32,7 +32,7 @@
   let st = null; // the character being edited
   let round = null; // { theme, awarded, gid, score, ok }
   let screen = 'home';
-  const ui = { cat: 'clothes', sub: { face: 'eyes', makeup: 'blush', clothes: 'top', acc: 'hat' }, zoom: false };
+  const ui = { cat: 'clothes', sub: { face: 'eyes', makeup: 'blush', clothes: 'top', acc: 'hat' }, zoom: false, only: false };
   const lastColor = {};
 
   /* ---------------- small helpers ---------------- */
@@ -255,7 +255,8 @@
     // clothes / accessories
     const slot = sub;
     const worn = st.wear[slot];
-    const list = DU.items.filter((it) => it.slot === slot).sort((a, b) => (ownsItem(a) ? 0 : 1) - (ownsItem(b) ? 0 : 1) || (a.price ? 1 : 0) - (b.price ? 1 : 0));
+    let list = DU.items.filter((it) => it.slot === slot).sort((a, b) => (ownsItem(a) ? 0 : 1) - (ownsItem(b) ? 0 : 1) || (a.price ? 1 : 0) - (b.price ? 1 : 0));
+    if (ui.only) list = list.filter((it) => it.tags.includes(t.id) || (worn && worn.id === it.id));
     let html = '';
     if (slot === 'top' || slot === 'bottom') {
       html += `<div class="toggle"><button class="${st.tuck ? 'on' : ''}" data-act="tuck" data-v="1">👕 חולצה בפנים</button><button class="${!st.tuck ? 'on' : ''}" data-act="tuck" data-v="0">👚 חולצה בחוץ</button></div>`;
@@ -266,7 +267,9 @@
       return tile(itemThumb(it, on ? worn.c : lastColor[it.id]) + (own ? (it.price ? '<span class="new">✨</span>' : '') : lockTag(it.price)) + (it.tags.includes(t.id) ? `<span class="badge">${t.icon}</span>` : ''),
         `data-act="wear" data-slot="${slot}" data-id="${it.id}" aria-label="${esc(it.name)}"`, (on ? 'on ' : '') + (own ? '' : 'locked'));
     }).join('');
-    return html + '</div>';
+    html += '</div>';
+    if (ui.only && !list.some((it) => it.tags.includes(t.id))) html += `<div class="hint-box">${t.icon} אין כאן משהו לאתגר הזה.<br>נסי קטגוריה אחרת!</div>`;
+    return html;
   }
   function colorsRow() {
     if (ui.cat === 'face' && ui.sub.face === 'eyes') {
@@ -283,7 +286,8 @@
     const subs = $('.subs', body), subScroll = keepScroll && subs ? subs.scrollLeft : null;
     const cols = $('.colors', body), colScroll = keepScroll && cols ? cols.scrollLeft : 0;
     let html = '';
-    if (SUBS[ui.cat]) html += `<div class="subs">${SUBS[ui.cat].map(([id, ico, nm]) => `<button class="sub ${ui.sub[ui.cat] === id ? 'on' : ''}" data-act="sub" data-id="${id}">${ico} ${nm}</button>`).join('')}</div>`;
+    const filterChip = ui.cat === 'clothes' || ui.cat === 'acc' ? `<button class="sub only ${ui.only ? 'on' : ''}" data-act="only" aria-pressed="${ui.only}">${theme().icon} רק לאתגר</button>` : '';
+    if (SUBS[ui.cat]) html += `<div class="subs">${filterChip}${SUBS[ui.cat].map(([id, ico, nm]) => `<button class="sub ${ui.sub[ui.cat] === id ? 'on' : ''}" data-act="sub" data-id="${id}">${ico} ${nm}</button>`).join('')}</div>`;
     html += `<div class="grid-scroll" id="gridScroll">${panelContent()}</div>` + colorsRow();
     body.innerHTML = html;
     if (top) $('#gridScroll').scrollTop = top;
@@ -671,6 +675,7 @@
     cat(el) { ui.cat = el.dataset.id; autoZoom(); snd.play('tab'); drawCats(); drawPanel(); drawStage(); },
     sub(el) { ui.sub[ui.cat] = el.dataset.id; autoZoom(); snd.play('tab'); drawPanel(); drawStage(); },
     zoom() { ui.zoom = !ui.zoom; snd.play('tap'); drawStage(); },
+    only() { ui.only = !ui.only; snd.play('tab'); drawPanel(true); },
     name() { snd.play('tap'); nameModal(); },
     theme() { snd.play('tap'); themeModal(false); },
     done() { finish(); },
