@@ -16,8 +16,12 @@
     { id: 'sleepy', name: 'חולמניות', w: 46, h: 31, tilt: -1, irx: 14.5, iry: 19.5, lash: 'soft', dy: 3 },
     { id: 'happy', name: 'צוחקות', closed: true },
     { id: 'wink', name: 'קריצה', w: 46, h: 48, tilt: 0, irx: 14.5, iry: 20.5, lash: 'cute', wink: true },
+    { id: 'doll', name: 'בובה', w: 50, h: 56, tilt: 0, irx: 17, iry: 24.5, lash: 'cute' },
+    { id: 'heart', name: 'לבבות', w: 48, h: 50, tilt: 0, irx: 15.5, iry: 22, lash: 'cute', heart: true },
+    { id: 'cool', name: 'קוליות', w: 50, h: 30, tilt: 6, irx: 13.5, iry: 17.5, lash: 'wing', dy: 2 },
+    { id: 'calm', name: 'רגועות', closed: true, down: true },
   ];
-  DU.EYE_COLORS = ['#7a4a2b', '#b5762f', '#4f9d5d', '#2f9fa8', '#3f7fd9', '#6b5bd6', '#a25bd1', '#e0679d', '#d94f4f', '#e2a530', '#6b7285', '#2f2a3a'];
+  DU.EYE_COLORS = ['#7a4a2b', '#b5762f', '#e2a530', '#8fbf3f', '#4f9d5d', '#2f9fa8', '#35c3d6', '#3f7fd9', '#6b5bd6', '#a25bd1', '#e0679d', '#ff7fa8', '#d94f4f', '#ff9a56', '#6b7285', '#2f2a3a'];
 
   function eyeOpen(sp, color, flip, id) {
     const a = sp.w / 2, b = sp.h / 2, t = sp.tilt || 0;
@@ -41,7 +45,9 @@
     g += `<ellipse cx="0" cy="${n(icy - 1)}" rx="${n(irx * 0.42)}" ry="${n(iry * 0.44)}" fill="${DU.mix(color, '#120a22', 0.82)}"/>`;
     g += `<ellipse cx="0" cy="${n(icy + iry * 0.58)}" rx="${n(irx * 0.62)}" ry="${n(iry * 0.25)}" fill="${DU.light(color, 0.62)}" fill-opacity=".8"/>`;
     g += `<path d="M${n(-a - 2)} ${n(-b - 4)}H${n(a + 2)}V${n(-b * 0.62)}Q0 ${n(-b * 0.86)} ${n(-a - 2)} ${n(-b * 0.62)}Z" fill="#1a0f2e" fill-opacity=".28"/>`;
-    if (sp.star) {
+    if (sp.heart) {
+      g += `<path d="${DU.heartD(hx, icy - iry * 0.4, irx * 0.4)}" fill="#fff"/><path d="${DU.heartD(-hx * 0.9, icy + iry * 0.38, irx * 0.2)}" fill="#fff" fill-opacity=".92"/>`;
+    } else if (sp.star) {
       g += DU.sparkle(hx, icy - iry * 0.42, irx * 0.5) + `<circle cx="${n(-hx * 0.95)}" cy="${n(icy + iry * 0.36)}" r="${n(irx * 0.2)}" fill="#fff"/>` +
         DU.sparkle(-hx * 0.3, icy + iry * 0.05, irx * 0.2, '#fff', 0.9) + `<circle cx="${n(hx * 1.3)}" cy="${n(icy + iry * 0.3)}" r="${n(irx * 0.1)}" fill="#fff"/>`;
     } else {
@@ -70,8 +76,8 @@
   /* the pair of eyes */
   DU.drawEyes = function (shapeId, color, uid) {
     const sp = DU.EYES.find((e) => e.id === shapeId) || DU.EYES[0];
-    const right = sp.closed ? eyeClosed(true) : eyeOpen(sp, color, 1, uid + 'eR');
-    const left = sp.closed ? eyeClosed(true) : sp.wink ? eyeClosed(true) : eyeOpen(sp, color, -1, uid + 'eL');
+    const right = sp.closed ? eyeClosed(!sp.down) : eyeOpen(sp, color, 1, uid + 'eR');
+    const left = sp.closed ? eyeClosed(!sp.down) : sp.wink ? eyeClosed(true) : eyeOpen(sp, color, -1, uid + 'eL');
     return `<g transform="translate(${EX} ${EY})">${right}</g><g transform="translate(${-EX} ${EY}) scale(-1 1)">${left}</g>`;
   };
   /* path of the upper lid (for eyeshadow), outer side = +x, relative to the eye centre */
@@ -90,6 +96,9 @@
     { id: 'brave', name: 'אמיצות', d: 'M-21 6Q2 -3 22 -9', w: 5 },
     { id: 'sweet', name: 'מתוקות', d: 'M-20 -9Q0 -9 22 3', w: 4.6 },
     { id: 'thick', name: 'עבות', d: 'M-20 2Q0 -7 21 0', w: 7.5 },
+    { id: 'dots', name: 'נקודות', d: 'M-7 -2Q0 -5 8 -2', w: 9 },
+    { id: 'high', name: 'מופתעות', d: 'M-20 -5Q2 -17 22 -7', w: 4.2 },
+    { id: 'thin', name: 'דקיקות', d: 'M-19 2Q2 -6 22 2', w: 2.6 },
   ];
   DU.drawBrows = function (id, color) {
     const b = DU.BROWS.find((x) => x.id === id) || DU.BROWS[0];
@@ -109,11 +118,16 @@
     { id: 'tongue', name: 'לשון', draw: (c) => p('M-5 3.5Q-5.5 14 0 14Q5.5 14 5 3.5Z', TNG, c, 2.2) + p('M-12 -2Q0 9 12 -2', 'none', c, 3.2) },
     { id: 'kiss', name: 'נשיקה', draw: (c) => `<path d="${DU.heartD(0, 2, 6.5)}" fill="${MIN}" stroke="${c}" stroke-width="2"/>` },
     { id: 'shy', name: 'ביישני', draw: (c) => p('M-11 2q3.7 -5 7.4 0t7.4 0t7.4 0', 'none', c, 3) },
+    { id: 'fang', name: 'ניב קטן', draw: (c) => p('M-15 -4Q0 0 15 -4Q12 13 0 13Q-12 13 -15 -4Z', MIN, c, 2.6) + '<path d="M5.5 -2.4L9 5.2L12 -3.2Z" fill="#fff"/>' + `<path d="M-7 10.5Q0 5 7 10.5Q0 14 -7 10.5Z" fill="${TNG}"/>` },
+    { id: 'gap', name: 'שן חסרה', draw: (c) => p('M-17 -5Q0 -1 17 -5Q15 16 0 16Q-15 16 -17 -5Z', MIN, c, 2.6) + '<path d="M-13 -3.2Q-7 -1.5 -2.6 -1.3L-2.6 4.6Q-8 4.2 -11.5 2Z" fill="#fff"/><path d="M3.4 -1.3Q8 -1.7 13 -3.2L11.5 2Q7.5 4.2 3.4 4.6Z" fill="#fff"/>' + `<path d="M-8 12.5Q0 6 8 12.5Q0 17 -8 12.5Z" fill="${TNG}"/>` },
+    { id: 'pout', name: 'מתוק', draw: (c) => p('M-8 4Q-4 -4 0 2Q4 -4 8 4', 'none', c, 3) },
+    { id: 'smirk', name: 'שובב', draw: (c) => p('M-11 3Q3 8 13 -5', 'none', c, 3.2) },
+    { id: 'wow', name: 'וואו', draw: (c) => p('M-13 -6Q0 -10 13 -6Q15 18 0 18Q-15 18 -13 -6Z', MIN, c, 2.6) + '<path d="M-10.5 -4.6Q0 -7.6 10.5 -4.6L10 -0.5Q0 -2.4 -10 -0.5Z" fill="#fff"/>' + `<path d="M-8 14Q0 7 8 14Q0 19 -8 14Z" fill="${TNG}"/>` },
   ];
   DU.drawMouth = function (id, lips) {
     const m = DU.MOUTHS.find((x) => x.id === id) || DU.MOUTHS[0];
     let g = '';
-    if (lips) g += `<ellipse cx="0" cy="${id === 'big' || id === 'grin' ? 17 : id === 'o' || id === 'kiss' ? -99 : 8}" rx="9" ry="3.6" fill="${lips}" fill-opacity=".55"/>`;
+    if (lips) g += `<ellipse cx="0" cy="${['big', 'grin', 'gap', 'wow'].includes(id) ? 18 : id === 'fang' ? 15 : id === 'o' || id === 'kiss' ? -99 : 8}" rx="9" ry="3.6" fill="${lips}" fill-opacity=".55"/>`;
     g += m.draw(lips ? DU.mix(lips, '#5a1630', 0.25) : ML);
     return `<g transform="translate(0 62)">${g}</g>`;
   };
@@ -125,9 +139,11 @@
     { id: 'manga', name: 'קווקווים', c: '#ff6f91' },
     { id: 'doll', name: 'בובה', c: '#ff8fb0' },
     { id: 'hearts', name: 'לבבות', c: '#ff6f91' },
+    { id: 'band', name: 'פס אנימה', c: '#ff7d9c' },
+    { id: 'stars', name: 'כוכבים', c: '#ffa94d' },
   ];
-  DU.SHADOWS = ['#ff9ac1', '#c79bff', '#7cc4ff', '#7ee0b8', '#ffd166', '#ff9a76', '#8d7ae6', '#f06ca8'];
-  DU.LIPS = ['#ff6f91', '#e0435f', '#ff9a76', '#d05fb8', '#b03a5b', '#ffa9c0', '#9b5de5'];
+  DU.SHADOWS = ['#ff9ac1', '#f06ca8', '#ff6f91', '#ff9a76', '#ffd166', '#7ee0b8', '#3fbf9a', '#7cc4ff', '#5c8fd6', '#c79bff', '#8d7ae6', '#6b5a7a'];
+  DU.LIPS = ['#ffa9c0', '#ff8fb0', '#ff6f91', '#e0435f', '#b03a5b', '#ff9a76', '#ffb199', '#d05fb8', '#9b5de5', '#7b3f6e'];
   DU.SPARKLES = [
     { id: 'stars', name: 'כוכבים' },
     { id: 'gems', name: 'יהלומים' },
@@ -135,6 +151,10 @@
     { id: 'freckles', name: 'נמשים' },
     { id: 'heart', name: 'לב' },
     { id: 'starcheek', name: 'כוכב' },
+    { id: 'whiskers', name: 'שפם חתול' },
+    { id: 'bandaid', name: 'פלסטר' },
+    { id: 'tears', name: 'טיפות נצנץ' },
+    { id: 'butterfly', name: 'פרפר' },
   ];
   /* things under the eyes layer (blush, eyeshadow, freckles) */
   DU.drawMakeupUnder = function (mk, eyesId, uid, sk) {
@@ -151,8 +171,11 @@
     if (bl) {
       const id = uid + 'bl';
       g += `<defs><radialGradient id="${id}"><stop offset="0" stop-color="${bl.c}" stop-opacity=".62"/><stop offset=".6" stop-color="${bl.c}" stop-opacity=".3"/><stop offset="1" stop-color="${bl.c}" stop-opacity="0"/></radialGradient></defs>`;
+      if (bl.id === 'band') g += `<ellipse cx="0" cy="40" rx="62" ry="12" fill="url(#${id})"/>`;
       const one = (s) => {
         const x = s * 51, y = 42;
+        if (bl.id === 'band') return `<path d="M${x - 9} ${y + 4}l4 -9M${x - 2} ${y + 4}l4 -9M${x + 5} ${y + 4}l4 -9" fill="none" stroke="${bl.c}" stroke-width="1.8" stroke-opacity=".8"/>`;
+        if (bl.id === 'stars') return `<ellipse cx="${x}" cy="${y}" rx="19" ry="12" fill="url(#${id})"/><path d="${DU.starD(x, y, 6.5)}" fill="${bl.c}" fill-opacity=".95"/><path d="${DU.sparkleD(x + s * 11, y - 7, 3)}" fill="#fff"/>`;
         if (bl.id === 'doll') return `<circle cx="${x}" cy="${y}" r="11.5" fill="${bl.c}" fill-opacity=".6"/><ellipse cx="${x - 3}" cy="${y - 4}" rx="3.2" ry="2" fill="#fff" fill-opacity=".6"/>`;
         if (bl.id === 'hearts') return `<ellipse cx="${x}" cy="${y}" rx="18" ry="11" fill="url(#${id})"/><path d="${DU.heartD(x, y, 6.5)}" fill="${bl.c}" fill-opacity=".85"/>`;
         let o = `<ellipse cx="${x}" cy="${y}" rx="${bl.id === 'manga' ? 17 : 20}" ry="${bl.id === 'manga' ? 10 : 12.5}" fill="url(#${id})"/>`;
@@ -188,6 +211,18 @@
         break;
       case 'heart':
         g += `<path d="${DU.heartD(58, 30, 5.5)}" fill="#ff5f8a" stroke="#fff" stroke-width="1.2"/>`;
+        break;
+      case 'whiskers':
+        g += both((s) => `<path d="M${s * 44} 38l${s * 21} -5M${s * 45} 44.5l${s * 22} 1M${s * 44} 51l${s * 20} 7" fill="none" stroke="#4b3350" stroke-width="2" stroke-opacity=".75"/>`) + '<path d="M-4 36.5h8l-4 5Z" fill="#ff8fa5" stroke="#8c3346" stroke-width="1.2"/>';
+        break;
+      case 'bandaid':
+        g += '<g transform="translate(0 31) rotate(-10)"><rect x="-14" y="-5.5" width="28" height="11" rx="5.5" fill="#ffd9b8" stroke="#c98f6b" stroke-width="1.3"/><rect x="-5" y="-5.5" width="10" height="11" fill="#fff1e2" stroke="#c98f6b" stroke-width=".8"/><circle cx="-10" cy="-1.5" r=".9" fill="#c98f6b"/><circle cx="-10" cy="2" r=".9" fill="#c98f6b"/><circle cx="10" cy="-1.5" r=".9" fill="#c98f6b"/><circle cx="10" cy="2" r=".9" fill="#c98f6b"/></g>';
+        break;
+      case 'tears':
+        g += both((s) => [[30, 37, 3.4], [39, 41, 2.6], [47, 39, 2]].map((q) => `<path d="M${s * q[0]} ${q[1] - q[2] * 1.5}q${q[2] * 1.1} ${q[2] * 1.6} 0 ${q[2] * 2.4}q${-q[2] * 1.1} ${-q[2] * 0.8} 0 ${-q[2] * 2.4}Z" fill="#aee9ff" stroke="#fff" stroke-width="1"/>`).join('') + DU.sparkle(s * 56, 31, 3.2, '#fff'));
+        break;
+      case 'butterfly':
+        g += '<g transform="translate(58 27) rotate(18)"><path d="M0 0C-3 -9 -11 -9 -10 -2C-10 3 -4 3 0 0ZM0 0C3 -9 11 -9 10 -2C10 3 4 3 0 0Z" fill="#ff9ad5" stroke="#fff" stroke-width="1"/><path d="M0 0C-2 6 -8 7 -7 2ZM0 0C2 6 8 7 7 2Z" fill="#b48cff" stroke="#fff" stroke-width="1"/><path d="M0 -3V4" stroke="#5a3a6a" stroke-width="1.4" fill="none"/></g>' + DU.sparkle(47, 20, 2.6, '#fff');
         break;
       case 'starcheek':
         g += `<path d="${DU.starD(-58, 31, 7.5)}" fill="#ffd54d" stroke="#fff" stroke-width="1.2"/>` + DU.sparkle(-47, 24, 3, '#fff');

@@ -235,5 +235,8 @@
     },
   });
 
+  /* helpers shared with the other shoe / sock files */
+  DU.feetKit = { G, tf, place, feet, footD, cupD, soleD, boot, legBand, both, sockFoot, sock, sockD };
+
   DU.addItems(items);
 })();

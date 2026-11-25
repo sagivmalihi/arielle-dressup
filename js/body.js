@@ -122,7 +122,10 @@
     soft: [[58, 58], [42, 78], [18, 90]],
     round: [[63, 60], [48, 83], [22, 91]],
     heart: [[54, 55], [36, 76], [11, 90]],
+    oval: [[55, 60], [41, 82], [19, 92]],
+    chubby: [[67, 62], [53, 86], [27, 91]],
   };
+  DU.FACE_NAMES = { soft: 'רכה', round: 'עגולה', heart: 'לב', oval: 'אובלית', chubby: 'לחיים' };
   DU.FACES = FACES;
   B.faceD = function (shape) {
     const f = FACES[shape] || FACES.soft;

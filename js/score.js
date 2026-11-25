@@ -19,7 +19,8 @@
     const g = (DU.GIRLS || []).find((x) => x.id === state.base) || {};
     const wear = state.wear || {}, mk = state.makeup || {};
     const worn = Object.keys(wear).filter((k) => wear[k] && DU.itemById[wear[k].id]).length;
-    const makeup = ['blush', 'shadow', 'lips', 'sparkle'].filter((k) => mk[k]).length;
+    const gm = g.makeup || {};
+    const makeup = ['blush', 'shadow', 'lips', 'sparkle'].filter((k) => mk[k] && mk[k] !== gm[k]).length;
     const ch = {
       hairStyle: !!(g.hair && state.hair.style !== g.hair.style),
       hairColor: !!(g.hair && state.hair.color !== g.hair.color),
@@ -30,6 +31,7 @@
       height: !!(state.body && state.body.h),
       muscles: !!(state.body && state.body.m),
       bg: state.bg !== 'bedroom',
+      skin: !!(g.skin && (state.skin !== g.skin || state.face !== g.face)),
     };
     const changes = Object.keys(ch).filter((k) => ch[k]).length;
     const named = !!(state.name && state.name.trim());
@@ -70,9 +72,10 @@
     if (theme) {
       const matches = items.filter((x) => x.it.tags.includes(theme.id));
       const bg = (DU.backgrounds || []).find((b) => b.id === state.bg);
-      const bgOk = !!(bg && (bg.tags || []).includes(theme.id));
-      const pts = Math.min(6, matches.length) * 70 + (bgOk ? 60 : 0);
-      if (pts) lines.push({ icon: theme.icon, label: `מתאים לאתגר ״${theme.name}״`, pts, count: matches.length + (bgOk ? 1 : 0) });
+      const bgOk = DU.fits('bg', bg, theme.id);
+      const hairOk = DU.fits('hair', (DU.HAIRS || []).find((h) => h.id === state.hair.style), theme.id);
+      const pts = Math.min(6, matches.length + (hairOk ? 1 : 0)) * 70 + (bgOk ? 60 : 0);
+      if (pts) lines.push({ icon: theme.icon, label: `מתאים לאתגר ״${theme.name}״`, pts, count: matches.length + (bgOk ? 1 : 0) + (hairOk ? 1 : 0) });
     }
 
     let det = 0;
@@ -81,7 +84,7 @@
     det += Math.min(4, ef.makeup) * 30;
     if (ef.ch.hairStyle || ef.ch.hairColor) det += 40;
     det += ['eyeShape', 'eyeColor', 'brows', 'mouth'].filter((k) => ef.ch[k]).length * 15;
-    if (ef.ch.height || ef.ch.muscles) det += 10;
+    if (ef.ch.height || ef.ch.muscles || ef.ch.skin) det += 10;
     if (ef.named) det += 30;
     if (det) lines.push({ icon: '✨', label: 'המון פרטים', pts: det });
 

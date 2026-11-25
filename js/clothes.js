@@ -655,5 +655,8 @@
     },
   });
 
+  /* helpers shared with the other clothing files */
+  Object.assign(K, { fillp, seam, stitch, hemOf, sleeves, cuff, buttons, collar, frill, pleats, skirtDims, waistband, dressSkirt });
+
   DU.addItems(items);
 })();
