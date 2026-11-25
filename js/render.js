@@ -13,7 +13,6 @@
 
   DU.CARD_W = 750;
   DU.CARD_H = 1000;
-  DU.CHAR_SCALE = 1.16;
 
   /* slots, in the order their layers stack */
   DU.SLOTS = ['wings', 'socks', 'shoes', 'bottom', 'top', 'dress', 'bracelet', 'bag', 'hand', 'necklace', 'earrings', 'glasses', 'hairacc', 'hat'];
@@ -111,35 +110,56 @@
 
     const mk = state.makeup || {};
     const eyes = state.eyes || {};
-    const face =
+    const face = opts.noHead ? '' :
       DU.body.head(sk, state.face) +
       DU.drawMakeupUnder(mk, eyes.shape, uid, sk) +
       DU.drawEyes(eyes.shape, eyes.color || '#7a4a2b', uid) +
       DU.drawMouth(state.mouth, mk.lips) +
       DU.drawMakeupOver(mk);
 
+    const headSvg = opts.noHead ? '' : head((L.headBack || '') + face + hairFront + hairTop + DU.drawBrows(state.brows, browColor) + (L.head || ''));
     const parts = [
-      L.back, head(hairBack),
+      L.back, opts.noHead ? '' : head(hairBack),
       DU.body.lower(R, sk), L.socks, bodyLayer,
       DU.body.arms(R, sk), L.sleeves, L.wrist, L.held, DU.body.hands(R, sk), L.over,
-      head((L.headBack || '') + face + hairFront + hairTop + DU.drawBrows(state.brows, browColor) + (L.head || '')),
+      headSvg,
       L.front,
     ].filter(Boolean).join('');
 
     return `<g stroke-linejoin="round" stroke-linecap="round" fill="none"><defs>${defs.join('')}</defs>${parts}</g>`;
   };
 
-  /* a rectangle [x, y, w, h] around the head, for the face zoom */
-  DU.headBox = function (state) {
+  /* Where the character stands on the card: feet a little above the bottom edge (room for the
+     name ribbon), scaled so even the tallest girl in a tall hat fits. */
+  DU.FEET_Y = 912;
+  DU.charScale = function (state) {
     const R = DU.rig(state.body);
-    const s = DU.CHAR_SCALE;
-    const cy = DU.GROUND_Y + (R.headY - DU.GROUND_Y) * s;
-    const h = 420;
-    return [375 - (h * 0.75) / 2, cy - h * 0.5, h * 0.75, h];
+    return Math.min(1.14, 898 / (950 - (R.headY - 182)));
   };
-  DU.GROUND_Y = 950;
+  DU.charTransform = (state) => `translate(375 ${DU.FEET_Y}) scale(${Math.round(DU.charScale(state) * 1000) / 1000}) translate(-375 -950)`;
+  /* where the head centre lands on the card (0…1 of the card height), for the face zoom */
+  DU.headCenterY = function (state) {
+    const R = DU.rig(state.body);
+    return (DU.FEET_Y + (R.headY + 6 - 950) * DU.charScale(state)) / 1000;
+  };
 
-  DU.charTransform = () => `translate(375 950) scale(${DU.CHAR_SCALE}) translate(-375 -950)`;
+  /* Small previews. They use the raw rig coordinates of the default body (no card scaling). */
+  DU.THUMB_BOX = {
+    top: '250 428 250 250', bottom: '185 530 380 430', dress: '125 425 500 540', shoes: '290 800 170 165', socks: '235 655 280 305',
+    hat: '215 100 320 350', hairacc: '225 130 300 330', glasses: '290 305 170 130', earrings: '265 300 220 180', necklace: '290 395 170 160',
+    bracelet: '255 515 240 200', bag: '285 400 300 340', hand: '160 380 300 340', wings: '115 290 520 540',
+    hair: '205 200 340 400', face: '283 262 184 190', girl: '225 205 300 400',
+  };
+  const BODY_SLOTS = ['top', 'bottom', 'dress', 'shoes', 'socks', 'necklace', 'bracelet'];
+  DU.renderThumb = function (state, kind) {
+    const uid = DU.uid('t');
+    const s = Object.assign({}, state, { body: { h: 0, m: 0 } });
+    const inner = DU.renderCharacter(s, { uid, noHead: BODY_SLOTS.includes(kind) });
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${DU.THUMB_BOX[kind] || DU.THUMB_BOX.girl}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+  };
+  DU.renderBgThumb = function (bg) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 1000" preserveAspectRatio="xMidYMid slice">${bg.draw(DU.uid('b'))}</svg>`;
+  };
 
   /* The whole card: background + character (+ optional name ribbon). Returns <svg> markup. */
   DU.renderCard = function (state, opts = {}) {
@@ -147,7 +167,7 @@
     const bg = (DU.backgrounds || []).find((b) => b.id === state.bg) || (DU.backgrounds || [])[0];
     let bgSvg = `<rect width="750" height="1000" fill="#fde9f3"/>`;
     if (bg && !opts.noBg) { try { bgSvg = bg.draw(uid + 'bg'); } catch (e) { console.error('bg failed', e); } }
-    const ch = `<g transform="${DU.charTransform()}">${DU.renderCharacter(state, { uid })}</g>`;
+    const ch = `<g transform="${DU.charTransform(state)}">${DU.renderCharacter(state, { uid })}</g>`;
     const vb = opts.viewBox || '0 0 750 1000';
     const size = opts.width ? ` width="${opts.width}" height="${opts.height}"` : '';
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}"${size} preserveAspectRatio="${opts.par || 'xMidYMid meet'}">${opts.noBg && !opts.plain ? '' : bgSvg}${ch}${opts.extra || ''}</svg>`;
