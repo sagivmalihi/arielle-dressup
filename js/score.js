@@ -8,7 +8,11 @@
   const ACC = ['hat', 'hairacc', 'glasses', 'earrings', 'necklace', 'bracelet', 'bag', 'hand', 'wings'];
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
-  DU.LOW_SCORE = 10;
+  DU.LOW_SCORE = 10; // what a not-invested character gets
+  /* "Invested" = she wears at least MIN_WORN things and the player made at least MIN_CHOICES choices
+     in total (things worn + makeup + changed hair / eyes / brows / mouth / body / background + a name). */
+  DU.MIN_WORN = 1;
+  DU.MIN_CHOICES = 4;
 
   /* how much the player changed from the starting look */
   DU.effort = function (state) {
@@ -30,7 +34,7 @@
     const changes = Object.keys(ch).filter((k) => ch[k]).length;
     const named = !!(state.name && state.name.trim());
     const total = worn + makeup + changes + (named ? 1 : 0);
-    return { worn, makeup, changes, ch, named, total, invested: worn >= 2 && total >= 5 };
+    return { worn, makeup, changes, ch, named, total, invested: worn >= DU.MIN_WORN && total >= DU.MIN_CHOICES };
   };
 
   const FAV = {
