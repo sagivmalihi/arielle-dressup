@@ -8,7 +8,7 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
-  const DEFAULT_TITLE = 'המשחק של אריאל';
+  const DEFAULT_TITLE = 'הגיע הזמן לעצב!'; // Arielle's name for the game
   const HC_PRICE = 300;
   const HC_NAMES = { rainbow: 'שיער קשת', sunset: 'שיער שקיעה', mermaid: 'שיער בת ים', galaxy: 'שיער גלקסיה', gold: 'שיער זהב' };
   const NAME_IDEAS = ['מיה', 'נועה', 'לונה', 'שירה', 'אלה', 'רומי', 'טליה', 'ליבי', 'מיקה', 'עלמה', 'יולי', 'כוכבית'];
