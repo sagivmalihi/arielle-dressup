@@ -90,8 +90,8 @@
     { id: 'g8', skin: '#f3c39c', face: 'heart', eyes: { shape: 'cool', color: '#6b7285' }, brows: 'straight', mouth: 'smirk', hair: { style: 'hime', color: '#2a2233' } },
     { id: 'g9', skin: '#e0a878', face: 'chubby', eyes: { shape: 'doll', color: '#4f9d5d' }, brows: 'thick', mouth: 'gap', hair: { style: 'pixie', color: '#a8703d' } },
     { id: 'g10', skin: '#b97f52', face: 'oval', eyes: { shape: 'cat', color: '#e2a530' }, brows: 'arch', mouth: 'fang', hair: { style: 'braids', color: '#4a2f27' } },
-    { id: 'g11', skin: '#8d5a3b', face: 'soft', eyes: { shape: 'heart', color: '#e0679d' }, brows: 'soft', mouth: 'big', hair: { style: 'sidetail', color: '#2a2233' }, makeup: { blush: 'soft' } },
-    { id: 'g12', skin: '#5a3524', face: 'chubby', eyes: { shape: 'sparkle', color: '#a25bd1' }, brows: 'sweet', mouth: 'cat', hair: { style: 'halfup', color: '#7a4a2b' } },
+    { id: 'g11', skin: '#8d5a3b', face: 'soft', eyes: { shape: 'heart', color: '#e0679d' }, brows: 'soft', mouth: 'big', hair: { style: 'boxbraids', color: '#2a2233' }, makeup: { blush: 'soft' } },
+    { id: 'g12', skin: '#5a3524', face: 'chubby', eyes: { shape: 'sparkle', color: '#a25bd1' }, brows: 'sweet', mouth: 'cat', hair: { style: 'afro', color: '#4a2f27' } },
   ];
 
   /* body colors: natural tones first, then a few fantasy ones */

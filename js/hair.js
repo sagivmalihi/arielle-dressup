@@ -374,6 +374,225 @@
       },
     },
   ];
+  /* ====================== second batch (each has theme tags) ====================== */
+  /* k evenly spaced stations along a smooth curve through pts → [{x, y, ang (from vertical), t, step}] */
+  function along(pts, k) {
+    const g = (i) => pts[Math.max(0, Math.min(pts.length - 1, i))];
+    const dense = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = g(i - 1), p1 = g(i), p2 = g(i + 1), p3 = g(i + 2);
+      for (let j = 0; j < 10; j++) {
+        const t = j / 10, t2 = t * t, t3 = t2 * t;
+        dense.push([0, 1].map((c) => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
+      }
+    }
+    dense.push(pts[pts.length - 1].slice(0, 2));
+    const len = [0];
+    for (let i = 1; i < dense.length; i++) len.push(len[i - 1] + Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]));
+    const total = len[len.length - 1], out = [];
+    for (let j = 0; j < k; j++) {
+      const target = ((j + 0.5) / k) * total;
+      let i = 1;
+      while (i < len.length - 1 && len[i] < target) i++;
+      const f = (target - len[i - 1]) / (len[i] - len[i - 1] || 1), a = dense[i - 1], b = dense[i];
+      out.push({ x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, ang: Math.atan2(b[0] - a[0], b[1] - a[1]), t: (j + 0.5) / k, step: total / k });
+    }
+    return out;
+  }
+  H.along = along;
+  /* a plait that follows a curve; width goes from w0 to w1 */
+  function braidAlong(pts, links, w0, w1, P) {
+    const q = along(pts, links), last = q[links - 1];
+    const dx = Math.sin(last.ang), dy = Math.cos(last.ang);
+    const ex = last.x + dx * (last.step * 0.5 + 7), ey = last.y + dy * (last.step * 0.5 + 7);
+    let out = H.tail([[ex - dx * 4, ey - dy * 4, w1 * 0.3], [ex + dx * 14 + 2, ey + dy * 14, w1 * 0.42], [ex + dx * 32, ey + dy * 34, 1.5]], P, 0.3, 0.9);
+    for (let i = links - 1; i >= 0; i--) {
+      const c = q[i], ww = w0 + (w1 - w0) * c.t, sg = i % 2 ? -1 : 1;
+      const hw = ww * 0.52, hh = c.step * 0.86, ox = sg * ww * 0.12;
+      const leaf = `M${n(ox)} ${n(-hh)}C${n(ox + hw * 1.25)} ${n(-hh * 0.95)} ${n(ox + hw * 1.1)} ${n(hh * 0.35)} ${n(ox)} ${n(hh)}C${n(ox - hw * 1.1)} ${n(hh * 0.35)} ${n(ox - hw * 1.25)} ${n(-hh * 0.95)} ${n(ox)} ${n(-hh)}Z`;
+      out += `<g transform="translate(${n(c.x)} ${n(c.y)}) rotate(${n((-c.ang * 180) / Math.PI + sg * 24)})">` + H.fill(leaf, P, 2.2) +
+        `<path d="M${n(ox - hw * 0.15)} ${n(-hh * 0.55)}Q${n(ox + hw * 0.2)} 0 ${n(ox)} ${n(hh * 0.6)}" fill="none" stroke="${P.line}" stroke-width="1.4" stroke-opacity=".4"/></g>`;
+    }
+    return out + H.tie(ex - dx * 5, ey - dy * 5, 90 - (last.ang * 180) / Math.PI, P, Math.max(0.7, w1 / 34));
+  }
+  /* a thin braid along a spine [[x, y, halfWidth], …] with little beads at the end */
+  const BEADS = ['#ffd76a', '#ff8fb5', '#7de3e0'];
+  function thinBraid(sp, P, bead = 0) {
+    const pts = sp.map((q) => [q[0], q[1]]);
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    const q = along(pts, Math.max(4, Math.round(total / 13)));
+    let d = '';
+    q.forEach((c) => {
+      const ax = Math.sin(c.ang), ay = Math.cos(c.ang), w = 5;
+      d += `M${n(c.x + ay * w - ax * 3)} ${n(c.y - ax * w - ay * 3)}L${n(c.x + ax * 3)} ${n(c.y + ay * 3)}L${n(c.x - ay * w - ax * 3)} ${n(c.y + ax * w - ay * 3)}`;
+    });
+    const e = sp[sp.length - 1], l = q[q.length - 1], ax = Math.sin(l.ang), ay = Math.cos(l.ang);
+    const beads = [0, 1].map((i) => `<circle cx="${n(e[0] + ax * (3 + i * 9))}" cy="${n(e[1] + ay * (3 + i * 9))}" r="5" fill="${BEADS[(bead + i) % 3]}" stroke="${P.line}" stroke-width="1.6"/>`).join('');
+    return H.tail(sp, P, 0.3, 0.3) + H.strands(d, P, 0.5) + beads;
+  }
+  /* a long spiral curl: slanted coils stacked downward from (x, y) */
+  function ringlet(x, y, coils, rx, ry, s, P) {
+    const pitch = ry * 1.22, yEnd = y + (coils - 1) * pitch;
+    let out = H.tail([[x, yEnd, rx * 0.6], [x + s * 3, yEnd + ry * 1.3, rx * 0.4], [x - s * 2, yEnd + ry * 2.5, 1.2]], P, 0.3, 0.9);
+    for (let i = coils - 1; i >= 0; i--) {
+      const k = 1 - 0.022 * i, cx = x + s * Math.sin(i * 1.1) * 2.2, cy = y + i * pitch;
+      out += `<g transform="translate(${n(cx)} ${n(cy)}) rotate(${s * 17})">` + H.fill(DU.ellD(0, 0, rx * k, ry * k), P, 2.1) +
+        `<ellipse cx="${n(-s * rx * k * 0.28)}" cy="${n(-ry * k * 0.42)}" rx="${n(rx * k * 0.34)}" ry="${n(ry * k * 0.16)}" ${DU.HL}/></g>`;
+    }
+    return out + ov(H.tailD([[x - s * rx * 0.55, y - ry * 0.5, rx * 0.34], [x - s * rx * 0.55, yEnd + ry * 0.4, rx * 0.3]], 0.6, 0.6), DU.SH);
+  }
+  /* points on a circle, clockwise on screen from angle a0 to a1 (degrees, -90 = top) */
+  const arcPts = (cx, cy, r, a0, a1, k) => {
+    const pts = [];
+    for (let i = 0; i <= k; i++) { const a = ((a0 + ((a1 - a0) * i) / k) * Math.PI) / 180; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+    return pts;
+  };
+  const coil = (x, y, k = 1) => `M${n(x - 6 * k)} ${n(y + 2 * k)}q${n(2 * k)} ${n(-9 * k)} ${n(8 * k)} ${n(-5 * k)}q${n(4 * k)} ${n(4 * k)} ${n(-2 * k)} ${n(7 * k)}`;
+  /* more asymmetric fringes (right temple → left temple) */
+  const PUNK = [ // spiky, parted on the right, swept across
+    [68, -34, 62, -60, 44, -78], [36, -66, 28, -52, 20, -42], [18, -54, 14, -62, 8, -68], [2, -54, -6, -40, -16, -32],
+    [-18, -46, -22, -56, -28, -62], [-34, -48, -42, -34, -52, -26], [-54, -38, -56, -46, -58, -50], [-63, -40, -66, -26, -68, -10],
+  ];
+  const SIDEPART = [[68, -34, 62, -60, 46, -78], [30, -74, 8, -66, -10, -52], [-26, -40, -44, -32, -58, -36], [-63, -30, -66, -20, -68, -10]];
+  H.PUNK = PUNK; H.SIDEPART = SIDEPART;
+
+  DU.HAIRS.push(
+    {
+      id: 'bun', name: 'פקעת בלרינה', price: 0, tags: ['ballet', 'paris'],
+      back: (P) => H.fill(BACK_UP, P),
+      front: (P) =>
+        H.tail([[42, -70, 4.5], [51, -48, 4], [56, -28, 1]], P, 0.2, 0.9) + H.tail([[-36, -72, 4.5], [-47, -50, 4], [-53, -32, 1]], P, 0.2, 0.9) + H.tail([[-8, -76, 4], [-15, -58, 3.4], [-12, -42, 1]], P, 0.2, 0.9) +
+        H.fill(H.cap(FRINGE.hairline, LOCK.wisp), P) +
+        H.strands('M0 -70Q2 -98 0 -122M30 -66Q34 -96 20 -120M-30 -66Q-34 -96 -20 -120M58 -54Q62 -86 40 -112M-58 -54Q-62 -86 -40 -112M84 -30Q84 -70 58 -104M-84 -30Q-84 -70 -58 -104', P, 0.4) + H.shine(-94, 48),
+      top: (P) => H.tie(0, -119, 90, P, 1.15) + bun(0, -143, 32, 27, P),
+    },
+    {
+      id: 'odango', name: 'פקעות וקוקיות', price: 0, tags: ['anime', 'kawaii'],
+      back: (P) => {
+        const t = [[64, -114, 7], [98, -106, 9.5], [121, -58, 11], [128, 20, 11.5], [125, 110, 10.5], [119, 200, 8.5], [113, 276, 5], [109, 318, 1.5]];
+        return H.fill(BACK_UP, P) + both((s) => H.tail(side(t, s), P) + H.strands(H.flow(side(t, s), 0.1 * s, 2, 1), P));
+      },
+      front: (P) => H.fill(H.cap(FRINGE.strands, LOCK.wisp), P) + H.strands(bangLines, P) + H.shine(),
+      top: (P) => both((s) => H.tie(s * 80, -101, s * 44, P, 0.72) + bun(s * 62, -122, 25, 23, P)),
+    },
+    {
+      id: 'sidebraid', name: 'צמה בצד', price: 0, tags: ['cowgirl', 'nature', 'hawaii'],
+      back: (P) => H.fill(BACK_NAPE, P),
+      front: (P) =>
+        braidAlong([[85, 38], [90, 92], [82, 150], [74, 208], [70, 262]], 9, 37, 27, P) +
+        H.fill(H.capA(SWOOP, [[95, -4, 101, 28, 93, 52], [78, 58], [74, 30, 71, 8, 68, -10]], LOCK.wisp), P) +
+        H.strands('M30 -88Q26 -106 30 -120M10 -62Q-22 -44 -52 -34M34 -70Q4 -84 -40 -52M44 -74Q60 -86 66 -104M-62 -44Q-72 -68 -62 -94M88 0Q93 26 86 50', P) + H.shine(-93, 50),
+    },
+    {
+      id: 'afro', name: 'אפרו', price: 0, tags: ['retro', 'pop'],
+      back: (P) =>
+        H.fill(H.scallop(arcPts(0, -42, 138, -90, 270, 26).slice(0, -1), 0.3), P) +
+        ov(sym(0, [[0, 26], [90, 26], [94, 48, 72, 74, 44, 82], [24, 88, 10, 88, 0, 88]]), DU.SH),
+      front: (P) => {
+        const outer = arcPts(0, -42, 138, -90, 42, 10);
+        const inner = [[92, 44], [80, 22], [73, 2], [68, -14]];
+        const fringe = [[56, -38], [38, -52], [14, -58], [-12, -58], [-36, -52], [-56, -38], [-68, -14]];
+        const pts = [...outer, ...inner, ...fringe, ...mirPts(inner).slice(1), ...mirPts(outer).slice(0, -1)];
+        const coils = [[-70, -122], [-20, -152], [42, -142], [92, -102], [-106, -62], [112, -32], [-114, 8], [110, 30], [-50, -92], [22, -106], [72, -68], [-86, -24], [-4, -80]];
+        return H.fill(H.scallop(pts, 0.3), P) + H.strands(coils.map((q) => coil(q[0], q[1], 1.15)).join(''), P, 0.5) +
+          ov('M-80 -124Q-40 -162 8 -160Q-36 -150 -68 -112Z', DU.HL) + ov('M70 -132Q98 -112 108 -84Q88 -108 64 -120Z', DU.HL);
+      },
+    },
+    {
+      id: 'boxbraids', name: 'צמות דקות', price: 0, tags: ['pop', 'hawaii'],
+      back: (P) => {
+        const b = (x, len, s) => [[s * (x - 24), -24, 7], [s * (x - 7), 40, 7.5], [s * x, 120, 7.5], [s * (x + 3), 200, 7], [s * (x + 1), len, 6]];
+        return H.fill(sym(0, [[0, -126], [60, -126, 97, -92, 97, -30], [104, 16, 108, 56, 106, 96], [60, 108, 30, 106, 0, 106]]), P) +
+          both((s) => thinBraid(b(130, 254, s), P, 0) + thinBraid(b(115, 298, s), P, 1) + thinBraid(b(100, 280, s), P, 2));
+      },
+      front: (P) => {
+        const f = (s) => [[s * 83, -22, 7], [s * 89, 40, 7.5], [s * 83, 108, 7.5], [s * 78, 168, 7], [s * 76, 206, 6]];
+        const rows = 'M12 -96Q28 -108 32 -122M28 -84Q50 -98 56 -114M44 -72Q68 -86 76 -100M58 -56Q80 -64 87 -76';
+        return both((s) => thinBraid(f(s), P, s > 0 ? 1 : 2)) +
+          H.fill(H.cap(FRINGE.curtain, [[93, -12, 92, 2, 86, 14], [80, 18], [77, 8, 72, -2, 68, -10]]), P) +
+          H.strands('M0 -100V-123' + rows + rows.replace(/([MQ ])(-?\d+) (-?\d+)/g, (m, c, x, y) => `${c}${-x} ${y}`), P, 0.5) + H.shine(-95, 46);
+      },
+    },
+    {
+      id: 'pigtails', name: 'קוקיות קצרות', price: 0, tags: ['school', 'kawaii', 'british'],
+      back: (P) => {
+        const t = [[82, 38, 8], [103, 47, 14], [121, 76, 16.5], [128, 110, 13], [124, 138, 7], [119, 156, 1.5]];
+        return H.fill(BACK_NAPE, P) + both((s) => H.tail(side(t, s), P, 0.5, 0.9) + H.strands(H.flow(side(t, s), 0.3 * s, 1, 1), P));
+      },
+      front: (P) =>
+        H.fill(H.capA(H.flipFringe(SWEPT), LOCK.wisp, LOCK.wisp), P) +
+        H.strands('M-60 -40Q-66 -66 -56 -92M-36 -44Q-40 -74 -22 -102M-4 -52Q-4 -80 14 -104M28 -68Q34 -94 28 -116M57 -49Q68 -70 58 -94', P) + H.shine() +
+        H.tie(89, 42, 58, P, 0.9) + H.tie(-89, 42, -58, P, 0.9),
+    },
+    {
+      id: 'punk', name: 'קוצים', price: 0, tags: ['rock'],
+      back: (P) =>
+        H.fill(sym(0, [[0, -126], [60, -126, 98, -92, 98, -30], [100, -8, 99, 8, 109, 26], [93, 22], [97, 50], [81, 38], [77, 64], [63, 47], [40, 60, 20, 58, 0, 58]]), P),
+      front: (P) =>
+        H.fill(H.capA(PUNK, LOCK.spiky, [[94, -8, 98, 26, 91, 52], [85, 72], [81, 46], [75, 58], [73, 30, 70, 8, 68, -10]]), P) +
+        H.strands('M44 -78Q46 -100 36 -118M20 -42Q30 -72 22 -104M-16 -32Q0 -66 -2 -104M-52 -26Q-34 -62 -30 -100M-58 -50Q-66 -72 -58 -96M-88 0Q-93 26 -88 50', P) + H.shine(-84, 54),
+      top: (P) => {
+        const zig = 'M-60 -100L-52 -146L-36 -121L-22 -168L-6 -127L12 -172L27 -125L44 -158L53 -115L68 -134L66 -98';
+        return `<path d="${zig}Q0 -84 -60 -100Z" fill="${P.fill}"/>` + p(zig, 'none', P.line, 2.4) +
+          H.strands('M-48 -112L-50 -134M-20 -124L-21 -150M12 -128L12 -156M43 -122L44 -146M62 -108L66 -124', P, 0.45);
+      },
+    },
+    {
+      id: 'ringlets', name: 'תלתלים ארוכים', price: 0, tags: ['princess', 'pirate'],
+      back: (P) =>
+        H.fill(sym(0, [[0, -126], [62, -126, 100, -94, 104, -34], [108, -14, 126, -2, 140, 14], [151, 26, 141, 44, 128, 48], [100, 60, 40, 66, 0, 66]]), P) +
+        both((s) => ringlet(s * 133, 26, 10, 15, 13.5, s, P) + ringlet(s * 108, 44, 14, 16, 14.5, s, P)),
+      front: (P) =>
+        both((s) => ringlet(s * 86, 6, 7, 12.5, 11.5, s, P)) +
+        H.fill(H.cap(FRINGE.curtain, [[93, -16, 92, -4, 88, 6], [78, 8], [75, 0, 71, -6, 68, -10]]), P) +
+        H.strands('M0 -100V-123M42 -72Q62 -84 70 -104M-42 -72Q-62 -84 -70 -104M20 -90Q40 -100 46 -116M-20 -90Q-40 -100 -46 -116', P) + H.shine(-95, 50),
+    },
+    {
+      id: 'big80s', name: 'שיער מנופח', price: 0, tags: ['retro', 'rock'],
+      back: (P) =>
+        H.fill(sym(0, [[0, -136], [72, -138, 114, -104, 119, -50], [138, -46], [125, -24, 131, -2, 129, 12], [152, 18], [135, 40, 139, 62, 133, 76], [152, 92], [129, 104, 123, 122, 113, 132], [122, 152], [97, 139, 80, 148, 66, 144], [40, 150, 20, 146, 0, 146]]), P) +
+        ov(sym(0, [[0, 44], [60, 44], [88, 62, 98, 100, 94, 124], [84, 138, 74, 144, 66, 144], [40, 150, 20, 146, 0, 146]]), DU.SH) +
+        H.strands('M112 -40L128 -30M118 20L138 26M122 82L140 92M106 130L114 144M-112 -40L-128 -30M-118 20L-138 26M-122 82L-140 92M-106 130L-114 144M104 -90Q118 -70 116 -52M-104 -90Q-118 -70 -116 -52', P, 0.5),
+      front: (P) =>
+        H.fill(H.capA(H.full(FRINGE.wispy), LOCK.spiky, LOCK.spiky), P) +
+        H.strands('M60 -46Q68 -68 58 -92M42 -52Q46 -78 34 -100M22 -54Q24 -80 12 -104M-60 -46Q-68 -68 -58 -92M-42 -52Q-46 -78 -34 -100M-22 -54Q-24 -80 -12 -104M0 -54V-78', P) + H.shine(-84, 56),
+      top: (P) => {
+        const t = [[50, -114, 11], [64, -150, 17], [96, -170, 22], [132, -154, 24], [153, -112, 22], [160, -66, 16], [158, -32, 8], [156, -14, 2]];
+        const t2 = [[140, -130, 9], [166, -108, 8], [176, -78, 2]];
+        return H.tail(t2, P) + H.tail(t, P, 0.4, 0.9) + H.strands(H.flow(t, 0.4, 1, 1) + H.flow(t, -0.35, 2, 1), P) + H.tie(52, -121, 28, P, 1.3);
+      },
+    },
+    {
+      id: 'shortwavy', name: 'גלי קצר', price: 0, tags: ['paris', 'school'],
+      back: (P) =>
+        H.fill(sym(0, [[0, -126], [60, -126, 97, -92, 97, -30], ...DU.cr([[97, -30], [111, 6], [102, 40], [113, 72], [103, 100]]), [97, 118, 84, 118, 78, 104], [70, 122, 54, 122, 46, 107], [38, 122, 22, 122, 14, 109], [8, 117, 4, 115, 0, 113]]), P) +
+        ov(sym(0, [[0, 28], [90, 28], [98, 60, 96, 90, 92, 104], [84, 118, 80, 112, 78, 104], [70, 122, 54, 122, 46, 107], [38, 122, 22, 122, 14, 109], [8, 117, 4, 115, 0, 113]]), DU.SH),
+      front: (P) => {
+        const lk = [[86, -26, 9], [96, 6, 11.5], [87, 38, 11], [95, 70, 9], [90, 98, 3]];
+        const lk2 = [[-86, -26, 9], [-97, 8, 11.5], [-88, 42, 11], [-96, 74, 9], [-92, 102, 3]];
+        return H.tail(lk, P, 0.3) + H.tail(lk2, P, 0.3) + H.strands(H.flow(lk, 0, 1, 1) + H.flow(lk2, 0, 1, 1), P) +
+          H.fill(H.capA(SIDEPART, NOLOCK, NOLOCK), P) +
+          H.strands('M46 -78Q44 -100 46 -118M30 -74Q0 -66 -30 -42M38 -76Q10 -92 -36 -62M56 -70Q66 -86 70 -102M-58 -36Q-72 -62 -64 -92', P) + H.shine(-93, 50);
+      },
+    },
+    {
+      id: 'rapunzel', name: 'ארוך־ארוך', price: 700, tags: ['princess', 'magic'],
+      back: (P) => {
+        const path = [[-54, 44], [-98, 72], [-126, 132], [-134, 222], [-130, 322], [-124, 420]];
+        const fl = along(path, 6), cols = ['#ffc1d9', '#ffffff', '#ffe08a', '#c9b6ff', '#ffc1d9', '#ffffff'];
+        return H.fill(BACK_NAPE, P) + H.tail([[10, 50, 22], [-40, 46, 24], [-80, 60, 22], [-104, 86, 20]], P, 0.6, 0.4) +
+          braidAlong(path, 16, 46, 29, P) +
+          fl.slice(1).map((c, i) => DU.flower(c.x + (i % 2 ? 9 : -9), c.y, 9, cols[i])).join('');
+      },
+      front: (P) =>
+        H.tail([[84, -24, 6], [92, 14, 6.5], [85, 50, 5], [90, 82, 1.2]], P, 0.3, 0.9) + H.tail([[-84, -24, 6], [-92, 10, 6.5], [-86, 44, 5], [-90, 70, 1.2]], P, 0.3, 0.9) +
+        H.fill(H.cap(FRINGE.curtain, LOCK.wisp), P) +
+        H.strands('M0 -100V-123M42 -72Q62 -84 70 -104M-42 -72Q-62 -84 -70 -104M20 -90Q40 -100 46 -116M-20 -90Q-40 -100 -46 -116', P) + H.shine(-95, 50) +
+        DU.flower(-80, -34, 10, '#ffc1d9') + DU.flower(-66, -50, 7, '#ffffff'),
+    }
+  );
+
   DU.HAIR_COLORS = ['#2a2233', '#4a2f27', '#7a4a2b', '#a8703d', '#d9a054', '#f2d27a', '#c8553d', '#e8845c', '#ff9ac1', '#e35d9b', '#b48cff', '#7b5bd6', '#5cc8ff', '#3f7fd9', '#59d6b5', '#f4f1ff', '#9aa3b8'];
   DU.HAIR_SPECIAL = ['rainbow', 'sunset', 'mermaid', 'galaxy', 'gold']; // shop colors
 })();

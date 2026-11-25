@@ -87,7 +87,7 @@
   function itemThumb(it, color, src) {
     src = src || st || demoGirl();
     const c = it.fixed ? '' : color || it.color;
-    const head = HEAD_SLOTS.includes(it.slot) || ['hand', 'bag', 'wings'].includes(it.slot);
+    const head = HEAD_SLOTS.includes(it.slot) || it.slot === 'wings';
     return cached(['it', it.id, c, src.skin, head ? hairKey(src) + src.face : ''].join('|'), () => {
       const b = bare(src);
       b.wear = { [it.slot]: { id: it.id, c: c || undefined } };

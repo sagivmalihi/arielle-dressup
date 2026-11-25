@@ -147,10 +147,10 @@
   DU.THUMB_BOX = {
     top: '250 428 250 250', bottom: '185 530 380 430', dress: '125 425 500 540', shoes: '290 800 170 165', socks: '235 655 280 305',
     hat: '215 100 320 350', hairacc: '225 130 300 330', glasses: '290 305 170 130', earrings: '265 300 220 180', necklace: '290 395 170 160',
-    bracelet: '255 515 240 200', bag: '285 400 300 340', hand: '160 380 300 340', wings: '115 290 520 540',
+    bracelet: '255 515 240 200', bag: '250 395 310 340', hand: '150 400 290 330', wings: '115 290 520 540',
     hair: '205 200 340 400', face: '283 262 184 190', girl: '225 205 300 400',
   };
-  const BODY_SLOTS = ['top', 'bottom', 'dress', 'shoes', 'socks', 'necklace', 'bracelet'];
+  const BODY_SLOTS = ['top', 'bottom', 'dress', 'shoes', 'socks', 'necklace', 'bracelet', 'bag', 'hand']; // drawn without the head, so long hair never hides the item
   DU.renderThumb = function (state, kind) {
     const uid = DU.uid('t');
     const s = Object.assign({}, state, { body: { h: 0, m: 0 } });
