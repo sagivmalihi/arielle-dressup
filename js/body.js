@@ -55,11 +55,11 @@
 
     /* --- base outfit: plain tank top + shorts --- */
     const tankF = '#ffffff', tankL = '#a79cc8', shortsF = '#d9d2f5', shortsL = '#8b7fb5';
-    const hemY = crotchY + 34;
+    const hemY = crotchY + 22;
     const lg = R.leg(hemY);
     const shorts = DU.sym(cx, [
       [0, hipY - 14], [R.side(hipY - 14) + 2, hipY - 14],
-      [hp + 3, hipY + 14, lg.x + lg.w + 3.5, hemY - 26, lg.x + lg.w + 3, hemY],
+      [hp + 3, hipY + 14, lg.x + lg.w + 3.5, hemY - 20, lg.x + lg.w + 3, hemY],
       [Math.max(1.2, lg.x - lg.w - 2.5), hemY + 2],
       [Math.max(1, lg.x - lg.w - 1), crotchY + 20, 2, crotchY + 12, 0, crotchY + 11],
     ]);

@@ -67,7 +67,7 @@
     };
 
     const top = itemOf('top'), bottom = itemOf('bottom'), dress = itemOf('dress'), shoes = itemOf('shoes'), hat = itemOf('hat');
-    ctx.tucked = !!(state.tuck && top && bottom && !dress && !top.noTuck);
+    ctx.tucked = !!(top && bottom && !dress && !top.noTuck && (state.tuck || bottom.forceTuck));
     ctx.hasBottom = !!bottom && !dress;
 
     // body garments: order depends on tuck + boots

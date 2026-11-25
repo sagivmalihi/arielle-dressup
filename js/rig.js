@@ -166,6 +166,17 @@
       return DU.sym(cx, segs);
     };
 
+    /* the open neckline curve that matches R.top(o) — for collars, trims and seams */
+    R.neckD = function (o = {}) {
+      const nw = Math.min(o.nw == null ? nk + 9 : o.nw, sh - 8), nd = o.nd == null ? 12 : o.nd;
+      const ny = R.shY(nw) - 2, y = sY + nd;
+      const L = (dx, yy) => `${n(cx - dx)} ${n(yy)}`, Rr = (dx, yy) => `${n(cx + dx)} ${n(yy)}`;
+      if (o.neck === 'v') return `M${L(nw, ny)}L${n(cx)} ${n(y)}L${Rr(nw, ny)}`;
+      if (o.neck === 'square') return `M${L(nw, ny)}L${L(nw - 2, y)}L${Rr(nw - 2, y)}L${Rr(nw, ny)}`;
+      if (o.neck === 'boat') return `M${L(nw + 6, ny + 3)}C${L(nw, y)} ${L(nw * 0.7, y)} ${n(cx)} ${n(y)}C${Rr(nw * 0.7, y)} ${Rr(nw, y)} ${Rr(nw + 6, ny + 3)}`;
+      return `M${L(nw, ny)}C${L(nw, sY + nd * 0.5)} ${L(nw * 0.62, y)} ${n(cx)} ${n(y)}C${Rr(nw * 0.62, y)} ${Rr(nw, sY + nd * 0.5)} ${Rr(nw, ny)}`;
+    };
+
     /* a sleeve on side s. o = { len: 0…1 along the arm, ease, puff: extra width at the top,
        bell: extra width at the cuff, cap: roundness at the shoulder } → path data */
     R.sleeve = function (s, o = {}) {
@@ -190,12 +201,12 @@
       const pts = R.sidePts(top, crotchY, ease);
       return DU.sym(cx, [[0, top], pts[0], ...DU.cr(pts), [hp - 6 + ease, crotchY + 16, 12, crotchY + 12, 0, crotchY + 10]]);
     };
-    /* whole trousers as one silhouette (pelvis + both legs): returns markup. */
-    R.pants = function (o, fill, line) {
+    /* whole trousers: the paths of pelvis + both legs. Draw them as ONE silhouette with
+       DU.union(R.pantsDs(o), fill, line). o = { top: waist y, yBot: hem y, ease, flare } */
+    R.pantsDs = function (o = {}) {
       const top = o.top == null ? waistY + 4 : o.top, e = o.ease == null ? 2.5 : o.ease;
       const yBot = o.yBot == null ? ankleY - 4 : o.yBot;
-      const parts = [R.pelvis(top, e), R.pantLeg(-1, yBot, e, o.flare || 0), R.pantLeg(1, yBot, e, o.flare || 0)];
-      return DU.union(parts, fill, line);
+      return [R.pelvis(top, e), R.pantLeg(-1, yBot, e, o.flare || 0), R.pantLeg(1, yBot, e, o.flare || 0)];
     };
     /* a skirt. o = { top: waist y, len: length below the hip line, flare: extra half width at the hem,
        ease, hemSegs(dx, y): custom hem going inward } → path data */
