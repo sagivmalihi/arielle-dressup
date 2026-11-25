@@ -1,6 +1,6 @@
 # הגיע הזמן לעצב!
 
-A dress-up and character-design game in anime style, designed by Arielle (8) and Sagiv.
+A dress-up and character-design game in anime style, designed by Arielle and her dad.
 Hebrew, RTL, made for an iPad in landscape and for a laptop.
 
 It is a static web app with no build step and no backend: open `index.html`, or serve the
