@@ -26,7 +26,7 @@
     face: [['eyes', '👁️', 'עיניים'], ['brows', '〰️', 'גבות'], ['mouth', '👄', 'פה']],
     makeup: [['blush', '🌸', 'סומק'], ['shadow', '🎨', 'צללית'], ['lips', '💋', 'שפתון'], ['sparkle', '✨', 'נצנצים']],
     clothes: [['top', '👚', 'חולצות'], ['bottom', '👖', 'מכנסיים וחצאיות'], ['dress', '👗', 'שמלות'], ['shoes', '👟', 'נעליים'], ['socks', '🧦', 'גרביים']],
-    acc: [['hat', '🎩', 'כובעים'], ['hairacc', '🎀', 'לשיער'], ['glasses', '👓', 'משקפיים'], ['earrings', '💎', 'עגילים'], ['necklace', '📿', 'שרשראות'], ['bracelet', '⌚', 'צמידים'], ['bag', '👜', 'תיקים'], ['hand', '🪄', 'ביד'], ['wings', '🦋', 'כנפיים']],
+    acc: [['hat', '🎩', 'כובעים'], ['hairacc', '🎀', 'לשיער'], ['glasses', '👓', 'משקפיים'], ['earrings', '💎', 'עגילים'], ['necklace', '📿', 'שרשראות'], ['bracelet', '⌚', 'צמידים'], ['bag', '👜', 'תיקים'], ['hand', '🪄', 'ביד'], ['side', '🐾', 'לידה'], ['wings', '🦋', 'כנפיים']],
   };
 
   let st = null; // the character being edited
@@ -44,6 +44,8 @@
   const ownsHC = (c) => c[0] === '#' || S.owns('hc:' + c);
   const ownsBg = (b) => !b.price || S.owns('bg:' + b.id);
   const themeLabel = (t) => (t.kind === 'style' ? 'סגנון ' : '') + t.name;
+  /* a hand-drawn icon (icons.js), or the emoji when there is none */
+  const ico = (name, emoji) => (DU.icon && DU.icon(name)) || emoji || '';
 
   function girlState(g) {
     const s = DU.defaultState();
@@ -133,6 +135,12 @@
     const d = S.data;
     const hero = d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl();
     document.title = title();
+    if (DU.room) {
+      const alb = DU.album ? DU.album.count() : { have: 0, total: 0 };
+      app.innerHTML = DU.room.html({ title: title(), points: d.points, muted: !!d.mute, hero, hasWip: !!d.wip, gallery: d.gallery.slice(0, 5).map((g) => g.state), gift: !!d.gift, albumHave: alb.have, albumTotal: alb.total });
+      DU.room.mount(app.firstElementChild);
+      return;
+    }
     app.innerHTML = `
       <div class="home">
         <div class="home-top"><button class="round-btn" data-act="mute" aria-label="צליל">${muteIcon()}</button><div class="stars-pill">⭐ <span>${d.points}</span></div></div>
@@ -188,7 +196,20 @@
         <div class="hairstrip card-panel" id="hair"></div>
       </div>`;
     autoZoom();
+    activeSecrets = DU.secrets ? DU.secrets.active(st) : [];
     drawTheme(); drawCats(); drawPanel(); drawStage(); drawHair(); drawName();
+  }
+  /* a secret combination was just completed → a little magic (the first time also gives stars) */
+  let activeSecrets = [];
+  function checkSecrets() {
+    if (!DU.secrets) return;
+    const now = DU.secrets.active(st);
+    const fresh = now.filter((id) => !activeSecrets.includes(id));
+    activeSecrets = now;
+    if (!fresh.length) return;
+    const id = fresh[0], first = !S.data.secrets[id];
+    if (first) { S.data.secrets[id] = 1; S.addPoints(DU.secrets.STARS || 100); setPointsUI(); }
+    try { DU.secrets.celebrate($('#stage'), id, first); } catch (e) { console.error(e); }
   }
   function drawTheme() {
     const t = theme(), el = $('#themeChip');
@@ -205,7 +226,16 @@
   }
   function drawStage(pop) {
     const art = $('#art'); if (!art) return;
-    art.innerHTML = DU.renderCard(st, { par: 'xMidYMid slice' });
+    if (DU.bgfx) {
+      if (!$('.art-char', art)) { art.innerHTML = '<div class="art-bg"></div><div class="art-fx"></div><div class="art-char"></div>'; art._bg = null; }
+      if (art._bg !== st.bg) {
+        const bg = DU.backgrounds.find((b) => b.id === st.bg) || DU.backgrounds[0];
+        art._bg = st.bg;
+        $('.art-bg', art).innerHTML = DU.renderBgThumb(bg);
+        DU.bgfx.mount($('.art-fx', art), bg.id);
+      }
+      $('.art-char', art).innerHTML = DU.renderCard(st, { par: 'xMidYMid slice', noBg: true, rig: true });
+    } else art.innerHTML = DU.renderCard(st, { par: 'xMidYMid slice' });
     const cy = DU.headCenterY(st);
     art.style.transformOrigin = `50% ${(cy * 100).toFixed(1)}%`;
     const stage = $('#stage');
@@ -278,7 +308,9 @@
     const slot = curSlot(), w = slot && st.wear[slot], it = w && DU.itemById[w.id];
     if (!it || it.fixed) return '';
     const cur = w.c || it.color;
-    return `<div class="colors">${DU.PALETTE.map((c) => `<button class="sw ${cur === c ? 'on' : ''}" style="background:${c}" data-act="color" data-c="${c}" aria-label="צבע"></button>`).join('')}</div>`;
+    const custom = String(cur).startsWith('pat:') || !!w.st;
+    const fab = DU.fabric ? `<button class="sw fabric-btn ${custom ? 'on' : ''}" style="background:${String(cur).startsWith('pat:') ? DU.swatchCss(cur) : '#fff'}" data-act="fabric" aria-label="בד משלי">${String(cur).startsWith('pat:') ? '' : ico('fabric', '🎨')}</button>` : '';
+    return `<div class="colors">${fab}${DU.PALETTE.map((c) => `<button class="sw ${cur === c ? 'on' : ''}" style="background:${c}" data-act="color" data-c="${c}" aria-label="צבע"></button>`).join('')}</div>`;
   }
   function drawPanel(keepScroll) {
     const body = $('#panelBody'); if (!body) return;
@@ -312,6 +344,7 @@
     drawPanel(true);
     if (what === 'hair' || what === 'look') drawHair(true);
     saveWip();
+    checkSecrets();
   }
 
   /* ---------------- shop products ---------------- */
@@ -429,11 +462,14 @@
     round.score = res.total; round.ok = res.ok;
     if (gain) S.addPoints(gain);
     if (res.ok || round.saved) saveGallery(); // a girl already in the gallery stays there, updated
+    let alb = null;
+    if ((res.ok || round.saved) && DU.album) { try { alb = DU.album.collect(st); } catch (e) { console.error(e); } }
+    if (res.ok && gain > 0 && !S.data.gift) S.data.gift = { stars: 50 + 10 * Math.floor(Math.random() * 11) }; // a surprise waits in her room
     saveWip();
-    showResult(res, gain);
+    showResult(res, gain, alb);
   }
   const resultButtons = () => `<div class="row"><button class="btn" data-act="r-new">✨ דמות חדשה</button><button class="btn white" data-act="r-edit">✏️ להמשיך לעצב</button><button class="btn white" data-act="r-photo">📷 תמונה</button></div>`;
-  function showResult(res, gain) {
+  function showResult(res, gain, alb) {
     const card = DU.renderCard(st);
     const handlers = {
       'r-new'() { closeAll(); showPick(); },
@@ -441,10 +477,20 @@
       'r-photo'() { photoModal(st); },
       'r-love'() {
         saveGallery(); saveWip(); snd.play('save'); confetti(90);
+        if (DU.album) { try { DU.album.collect(st); } catch (e) { console.error(e); } }
+        if (DU.show && $('.show-host', m)) return DU.show.loved($('.show-host', m));
         $('.side', m).innerHTML = `<div class="big-ico">💖</div><h3 style="text-align:center">היא נשמרה בגלריה!</h3><p style="text-align:center">כי את אוהבת אותה — וזה הכי חשוב.</p>${resultButtons()}`;
       },
     };
     let m;
+    if (DU.show) { // the fashion show (show.js) replaces the table of numbers
+      m = openModal('<div class="show-host"></div>', handlers, { sticky: true });
+      m.classList.add('show-back');
+      const run = DU.show.run($('.show-host', m), { state: st, res, gain, theme: theme(), stickers: alb ? alb.fresh.length : 0, pagesDone: alb ? alb.done.length : 0 });
+      Promise.resolve(run && run.done).then(() => setPointsUI());
+      if (res.ok) confetti(60);
+      return;
+    }
     if (!res.ok) {
       m = openModal(`
         <div class="modal wide"><div class="result">
@@ -592,6 +638,18 @@
     });
   }
 
+  /* ---------------- sticker album (album.js) ---------------- */
+  function showAlbum() {
+    if (!DU.album) return;
+    screen = 'album'; closeAll();
+    app.innerHTML = `
+      <div class="screen">
+        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">${ico('home', '🏠')}</button><h2>האלבום שלי</h2><div class="stars-pill">${ico('star', '⭐')} <span>${S.data.points}</span></div></div>
+        <div class="scroll card-panel album-host" id="albumBody">${DU.album.html()}</div>
+      </div>`;
+    DU.album.mount($('#albumBody'));
+  }
+
   /* ---------------- shop ---------------- */
   function showShop() {
     screen = 'shop'; closeAll();
@@ -669,6 +727,21 @@
     continue() { snd.play('tap'); const w = S.data.wip; if (!w) return; st = w.state; round = w.round; if (!st.makeup) st.makeup = {}; showEditor(); },
     gallery() { snd.play('tap'); showGallery(); },
     shop() { snd.play('tap'); showShop(); },
+    album() { snd.play('tap'); showAlbum(); },
+    gift() {
+      const g = S.data.gift, root = app.firstElementChild;
+      if (!g || !DU.room || !DU.room.openGift) return;
+      S.data.gift = null; S.addPoints(g.stars || 0); snd.play('buy');
+      Promise.resolve(DU.room.openGift(root, g)).then(() => { setPointsUI(); confetti(50); });
+    },
+    fabric() {
+      const slot = curSlot(), w = slot && st.wear[slot];
+      if (!w || !DU.fabric) return;
+      snd.play('tap');
+      const sync = () => { if (w.c) lastColor[w.id] = w.c; };
+      const m = openModal('<div class="modal wide fabric-modal"><button class="x" data-act="close" aria-label="סגירה">✕</button><div class="fabric-host"></div></div>', {}, { onClose: () => { sync(); cache.clear(); changed(); } });
+      DU.fabric.open({ host: $('.fabric-host', m), state: st, slot, onChange: () => { sync(); drawStage(); saveWip(); } });
+    },
     pick(el) { startRound(el.dataset.id); },
     close() { snd.play('tap'); closeModal(); },
 
@@ -742,6 +815,6 @@
 
   /* ---------------- go ---------------- */
   snd.setMuted(S.data.mute);
-  DU.app = { showHome, showEditor, showPick, showGallery, showShop, startRound, finish, get state() { return st; }, get round() { return round; }, actions };
+  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, startRound, finish, confetti, toast, get state() { return st; }, get round() { return round; }, actions };
   showHome();
 })();

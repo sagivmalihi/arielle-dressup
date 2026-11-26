@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
-  const ACC = ['hat', 'hairacc', 'glasses', 'earrings', 'necklace', 'bracelet', 'bag', 'hand', 'wings'];
+  const ACC = ['hat', 'hairacc', 'glasses', 'earrings', 'necklace', 'bracelet', 'bag', 'hand', 'wings', 'side'];
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
   DU.LOW_SCORE = 10; // what a not-invested character gets
@@ -81,6 +81,7 @@
     let det = 0;
     det += items.filter((x) => ACC.includes(x.slot)).length * 40;
     if (wear.socks) det += 20;
+    det += Math.min(3, items.filter((x) => String(wear[x.slot].c || '').startsWith('pat:') || wear[x.slot].st).length) * 25; // her own fabric / sticker
     det += Math.min(4, ef.makeup) * 30;
     if (ef.ch.hairStyle || ef.ch.hairColor) det += 40;
     det += ['eyeShape', 'eyeColor', 'brows', 'mouth'].filter((k) => ef.ch[k]).length * 15;

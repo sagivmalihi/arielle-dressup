@@ -20,10 +20,12 @@
   --vh: 100vh; /* older iPads; newer ones get the dynamic height below */
 }
 @supports (height: 100dvh) { :root { --vh: 100dvh; } }
+@font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-stretch: 100%; font-display: swap; src: url(../fonts/Fredoka-hebrew.woff2) format('woff2'); unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F; }
+@font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-stretch: 100%; font-display: swap; src: url(../fonts/Fredoka-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
 body {
-  font-family: system-ui, -apple-system, "SF Hebrew", "Arial Hebrew", "Segoe UI", Arial, sans-serif;
+  font-family: 'Fredoka', system-ui, -apple-system, "SF Hebrew", "Arial Hebrew", "Segoe UI", Arial, sans-serif;
   color: var(--ink);
   background:
     radial-gradient(circle at 12px 12px, rgba(255, 255, 255, .7) 2.5px, transparent 3px) 0 0 / 28px 28px,
@@ -269,3 +271,10 @@ svg { display: block; width: 100%; height: 100%; }
   .cat { min-height: 52px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* the stage in layers: background · living effects · the girl */
+.art-bg, .art-fx, .art-char { position: absolute; inset: 0; }
+.art-bg svg, .art-char svg { display: block; width: 100%; height: 100%; }
+.art-fx { overflow: hidden; pointer-events: none; }
+.sw.fabric-btn { display: inline-flex; align-items: center; justify-content: center; font-size: 20px; border-style: dashed; }
+.sw.fabric-btn svg { width: 70%; height: 70%; }

@@ -3,13 +3,17 @@
   'use strict';
   const DU = (window.DU = window.DU || {});
   const KEY = 'arielle-dressup.v1';
-  const fresh = () => ({ v: 1, points: 0, owned: {}, gallery: [], wip: null, mute: false, title: '', lastTheme: null, seenHelp: false });
+  /* album: item id → 1 (sticker earned) · albumDone: page id → 1 (prize taken) · secrets: secret id → 1 (found)
+     gift: null | { stars } a surprise waiting in her room */
+  const fresh = () => ({ v: 1, points: 0, owned: {}, gallery: [], wip: null, mute: false, title: '', lastTheme: null, seenHelp: false, album: {}, albumDone: {}, secrets: {}, gift: null });
 
   let data = fresh();
   let ok = true;
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) data = Object.assign(fresh(), JSON.parse(raw));
+    ['owned', 'album', 'albumDone', 'secrets'].forEach((k) => { if (!data[k] || typeof data[k] !== 'object') data[k] = {}; });
+    if (!Array.isArray(data.gallery)) data.gallery = [];
   } catch (e) { ok = false; }
 
   let timer = null;

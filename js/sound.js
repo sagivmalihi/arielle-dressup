@@ -45,6 +45,11 @@
       if (muted || !SFX[name] || !ensure()) return;
       try { SFX[name](ctx.currentTime + 0.005); } catch (e) { /* never let a sound break the game */ }
     },
+    /* one soft note for other modules: DU.sound.tone(880, { dur, type, vol, at (seconds from now), slide }) */
+    tone(freq, o = {}) {
+      if (muted || !ensure()) return;
+      try { note(freq, ctx.currentTime + 0.005 + (o.at || 0), o.dur || 0.2, o.type || 'sine', o.vol || 0.18, o.slide); } catch (e) { /* ignore */ }
+    },
     setMuted(m) { muted = !!m; },
     get muted() { return muted; },
     unlock: ensure,
