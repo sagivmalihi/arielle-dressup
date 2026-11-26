@@ -476,6 +476,7 @@
       'r-new'() { closeAll(); showPick(); },
       'r-edit'() { closeAll(); setPointsUI(); },
       'r-photo'() { photoModal(st); },
+      'r-ride'() { startRide(st); },
       'r-love'() {
         saveGallery(); saveWip(); snd.play('save'); confetti(90);
         if (DU.album) { try { DU.album.collect(st); } catch (e) { console.error(e); } }
@@ -626,7 +627,9 @@
         <h3>${esc((g.state.name || '').trim() || 'בלי שם')} <span dir="ltr" style="color:#a36b00">${starIco()} ${g.score || 0}</span></h3>
         <div class="preview-card">${DU.renderCard(g.state)}</div>
         <div class="row"><button class="btn" data-act="edit">${ico('pencil', '✏️')} לעצב אותה</button><button class="btn white" data-act="photo">${ico('camera', '📷')} תמונה</button><button class="btn white" data-act="del" aria-label="מחיקה">${ico('trash', '🗑️')}</button></div>
+        <div class="row"><button class="btn ride-go" data-act="ride">${ico('bike', '🚲')} לרכוב לבית הספר</button></div>
       </div>`, {
+      ride() { startRide(g.state); },
       edit() {
         st = clone(g.state);
         if (!st.makeup) st.makeup = { blush: null, shadow: null, lips: null, sparkle: null };
@@ -709,6 +712,37 @@
     else { raf = 0; g.clearRect(0, 0, innerWidth, innerHeight); }
   }
 
+  /* ---------------- the bike ride to school (ride*.js, fetched only when she first rides) ---------------- */
+  const RIDE_FILES = ['lib/three.min.js', 'js/ride-data.js', 'js/ride-kit.js', 'js/ride-models.js', 'js/ride-world.js', 'js/ride-rider.js', 'js/ride.js'];
+  let rideFiles = null;
+  function loadRide() {
+    if (rideFiles) return rideFiles;
+    const me = document.querySelector('script[src*="js/app.js"]');
+    const v = ((me && me.getAttribute('src')) || '').replace(/^[^?]*/, '');
+    rideFiles = RIDE_FILES.reduce((p, f) => p.then(() => new Promise((ok, bad) => {
+      const s = document.createElement('script');
+      s.src = f + v; s.onload = ok; s.onerror = () => bad(new Error('could not load ' + f));
+      document.head.appendChild(s);
+    })), Promise.resolve());
+    rideFiles.catch(() => { rideFiles = null; });
+    return rideFiles;
+  }
+  function startRide(state) {
+    if (document.querySelector('.ride, .ride-load')) return;
+    snd.unlock(); snd.play('pick');
+    const veil = document.createElement('div');
+    veil.className = 'ride-load';
+    veil.innerHTML = `<div class="ride-load-card"><div class="ride-wheel">${ico('bike', '🚲')}</div><b>מכינים את האופניים…</b></div>`;
+    document.body.appendChild(veil);
+    loadRide().then(() => {
+      DU.ride.start({
+        state: clone(state), veil, run: S.data.rides || 0,
+        onReward(n) { S.addPoints(n); S.data.rides = (S.data.rides || 0) + 1; S.save(true); },
+        onExit() { closeAll(); showHome(); setPointsUI(); },
+      });
+    }).catch((e) => { console.error(e); veil.remove(); toast('אוי, הרכיבה לא נטענה. ננסה שוב?'); });
+  }
+
   /* ---------------- one click handler for everything ---------------- */
   const actions = {
     home() { snd.play('tap'); showHome(); },
@@ -728,6 +762,7 @@
     gallery() { snd.play('tap'); showGallery(); },
     shop() { snd.play('tap'); showShop(); },
     album() { snd.play('tap'); showAlbum(); },
+    ride() { const d = S.data; startRide(d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl()); },
     gift() {
       const g = S.data.gift, root = app.firstElementChild;
       if (!g || !DU.room || !DU.room.openGift) return;
@@ -815,6 +850,6 @@
 
   /* ---------------- go ---------------- */
   snd.setMuted(S.data.mute);
-  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, startRound, finish, confetti, toast, get state() { return st; }, get round() { return round; }, actions };
+  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, startRound, finish, confetti, toast, startRide, get state() { return st; }, get round() { return round; }, actions };
   showHome();
 })();

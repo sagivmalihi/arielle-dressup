@@ -31,10 +31,29 @@ lines up on every height and build.
 | `js/fabric.js` | "my own fabric": pattern fills (`pat:kind:bg:fg:size`), chest stickers, the studio |
 | `js/album.js` | the sticker album, the secret combinations, and the living effects on backgrounds |
 | `js/store.js`, `js/sound.js`, `js/app.js` | saving, sound effects, screens |
+| `js/ride*.js`, `lib/three.min.js` | the 3D bike ride to school (see below) |
 
 To add an item, add an object to one of the `DU.addItems([...])` lists: `id`, `slot`,
 Hebrew `name`, theme `tags`, `price` (0 = free, more = shop), `color`, and a `draw(R, P, ctx)`
 that returns SVG.
+
+## The bike ride
+
+From her room (the bike by the door), after the fashion show, or from the gallery, the girl she
+dressed rides her bike to school through real streets in 3D. It is the only part that uses a
+library: [three.js](https://threejs.org) r149 (MIT), bundled in `lib/`. All of it is fetched only
+when a ride starts, so the dress-up game loads as fast as before.
+
+| File | What it holds |
+|---|---|
+| `js/ride-data.js` | the streets, buildings, parks and the route, baked from OpenStreetMap (metres; x east, z south) |
+| `js/ride-kit.js` | shared 3D helpers: palette, painted primitives merged into one mesh, signs with text, the route maths |
+| `js/ride-world.js` | builds the city from the data: roads, buildings, trees, signs, sky, light |
+| `js/ride-rider.js` | the girl as a paper doll on a 3D bike (a back view of her is drawn by `render.js`) |
+| `js/ride-models.js` | stars, cones, pigeons, cats, cars, people, traffic lights |
+| `js/ride.js` | the game: steering, hop and bell, what lies on the road, the red lights, the arrival |
+
+Map data © OpenStreetMap contributors, available under the Open Database License.
 
 The font is Fredoka (SIL Open Font License), bundled in `fonts/` so the game loads nothing from other sites.
 
