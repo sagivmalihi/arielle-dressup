@@ -24,10 +24,18 @@ lines up on every height and build.
 | `js/catalog.js` | item registry, palette, the challenges (places and styles), the base girls, body colors |
 | `js/render.js` | layer order, the card, thumbnails |
 | `js/score.js` | the "סיימתי" rating and the "invested" rule |
+| `js/props.js` | more things to hold, and the pets and objects that stand next to her (`side` slot) |
+| `js/motion.js` | moving a rigged girl (`renderCard(state, { rig: true })`): poses, hop, blink, sparkles |
+| `js/room.js`, `js/icons.js` | the home screen (her room) and the hand-drawn icon set |
+| `js/show.js` | the fashion show that plays after "סיימתי" |
+| `js/fabric.js` | "my own fabric": pattern fills (`pat:kind:bg:fg:size`), chest stickers, the studio |
+| `js/album.js` | the sticker album, the secret combinations, and the living effects on backgrounds |
 | `js/store.js`, `js/sound.js`, `js/app.js` | saving, sound effects, screens |
 
 To add an item, add an object to one of the `DU.addItems([...])` lists: `id`, `slot`,
 Hebrew `name`, theme `tags`, `price` (0 = free, more = shop), `color`, and a `draw(R, P, ctx)`
 that returns SVG.
+
+The font is Fredoka (SIL Open Font License), bundled in `fonts/` so the game loads nothing from other sites.
 
 When you publish a change, bump the `?v=` number on the assets in `index.html` so devices fetch the new files.

@@ -36,16 +36,17 @@
   const lastColor = {};
 
   /* ---------------- small helpers ---------------- */
+  /* a hand-drawn icon (icons.js), or the emoji when there is none */
+  const ico = (name, emoji) => (DU.icon && DU.icon(name)) || emoji || '';
   const title = () => (S.data.title || '').trim() || DEFAULT_TITLE;
-  const muteIcon = () => (S.data.mute ? '🔇' : '🔊');
+  const muteIcon = () => (S.data.mute ? ico('mute', '🔇') : ico('sound', '🔊'));
+  const starIco = () => ico('star', '⭐');
   const theme = () => DU.THEMES.find((t) => t.id === (round && round.theme)) || DU.THEMES[0];
   const ownsItem = (it) => !it.price || S.owns('item:' + it.id);
   const ownsHair = (h) => !h.price || S.owns('hair:' + h.id);
   const ownsHC = (c) => c[0] === '#' || S.owns('hc:' + c);
   const ownsBg = (b) => !b.price || S.owns('bg:' + b.id);
   const themeLabel = (t) => (t.kind === 'style' ? 'סגנון ' : '') + t.name;
-  /* a hand-drawn icon (icons.js), or the emoji when there is none */
-  const ico = (name, emoji) => (DU.icon && DU.icon(name)) || emoji || '';
 
   function girlState(g) {
     const s = DU.defaultState();
@@ -143,7 +144,7 @@
     }
     app.innerHTML = `
       <div class="home">
-        <div class="home-top"><button class="round-btn" data-act="mute" aria-label="צליל">${muteIcon()}</button><div class="stars-pill">⭐ <span>${d.points}</span></div></div>
+        <div class="home-top"><button class="round-btn" data-act="mute" aria-label="צליל">${muteIcon()}</button><div class="stars-pill">${starIco()} <span>${d.points}</span></div></div>
         <div class="home-art">${DU.renderCard(hero)}</div>
         <div class="home-side">
           <h1 class="title">${esc(title())}</h1>
@@ -162,7 +163,7 @@
     screen = 'pick';
     app.innerHTML = `
       <div class="screen">
-        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">🏠</button><h2>בחרי דמות 👇</h2></div>
+        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">${ico('home', '🏠')}</button><h2>בחרי דמות</h2></div>
         <div class="scroll"><div class="girls pick">${DU.GIRLS.map((g) => `<button class="girl" data-act="pick" data-id="${g.id}">${DU.renderThumb(girlState(g), 'girl')}</button>`).join('')}</div></div>
       </div>`;
   }
@@ -183,15 +184,15 @@
     app.innerHTML = `
       <div class="editor">
         <div class="topbar">
-          <button class="round-btn" data-act="home" aria-label="בית">🏠</button>
+          <button class="round-btn" data-act="home" aria-label="בית">${ico('home', '🏠')}</button>
           <button class="theme-chip" data-act="theme" id="themeChip"></button>
-          <div class="stars-pill">⭐ <span>${S.data.points}</span></div>
+          <div class="stars-pill">${starIco()} <span>${S.data.points}</span></div>
           <button class="round-btn" data-act="mute" aria-label="צליל">${muteIcon()}</button>
-          <button class="btn mint done-btn" data-act="done">סיימתי ✓</button>
+          <button class="btn mint done-btn" data-act="done">סיימתי ${ico('check', '✓')}</button>
         </div>
         <div class="panel card-panel"><div class="cats" id="cats"></div><div id="panelBody" style="display:contents"></div></div>
         <div class="stage-wrap"><div class="stage" id="stage"><div class="stage-art" id="art"></div>
-          <button class="round-btn stage-btn zoom-btn" data-act="zoom" aria-label="זום">🔍</button>
+          <button class="round-btn stage-btn zoom-btn" data-act="zoom" aria-label="זום">${ico('zoom', '🔍')}</button>
           <button class="name-pill" data-act="name" id="namePill"></button></div></div>
         <div class="hairstrip card-panel" id="hair"></div>
       </div>`;
@@ -216,12 +217,12 @@
     if (el) el.innerHTML = `<span class="ico">${t.icon}</span><span>האתגר: ${esc(themeLabel(t))}</span><small>${esc(t.hint)}</small>`;
   }
   function drawCats() {
-    $('#cats').innerHTML = CATS.map((c) => `<button class="cat ${ui.cat === c.id ? 'on' : ''}" data-act="cat" data-id="${c.id}"><span class="ico">${c.ico}</span>${c.name}</button>`).join('');
+    $('#cats').innerHTML = CATS.map((c) => `<button class="cat ${ui.cat === c.id ? 'on' : ''}" data-act="cat" data-id="${c.id}"><span class="ico">${ico(c.id, c.ico)}</span>${c.name}</button>`).join('');
   }
   function drawName() {
     const el = $('#namePill'); if (!el) return;
     const nm = (st.name || '').trim();
-    el.textContent = nm || '✏️ איך קוראים לה?';
+    el.innerHTML = nm ? esc(nm) : `${ico('pencil', '✏️')} איך קוראים לה?`;
     el.classList.toggle('empty', !nm);
   }
   function drawStage(pop) {
@@ -250,7 +251,7 @@
   const curSlot = () => (ui.cat === 'clothes' || ui.cat === 'acc' ? ui.sub[ui.cat] : null);
 
   function tile(inner, attrs, cls = '') { return `<button class="tile ${cls}" ${attrs}>${inner}</button>`; }
-  const lockTag = (price) => `<span class="lock">🔒 ${price}</span>`;
+  const lockTag = (price) => `<span class="lock">${ico('lock', '🔒')} ${price}</span>`;
 
   function panelContent() {
     const cat = ui.cat, sub = ui.sub[cat], t = theme();
@@ -261,12 +262,12 @@
       const stepper = (k, min, max, lo, hi) => {
         const v = st.body[k] || 0; let dots = '';
         for (let i = min; i <= max; i++) dots += `<span class="dot ${i === v ? 'on' : ''}"></span>`;
-        return `<div class="stepper"><button class="round-btn" data-act="body" data-k="${k}" data-d="-1" aria-label="${lo}">${k === 'h' ? '⬇️' : '➖'}</button><div class="dots">${dots}</div><button class="round-btn" data-act="body" data-k="${k}" data-d="1" aria-label="${hi}">${k === 'h' ? '⬆️' : '💪'}</button></div>`;
+        return `<div class="stepper"><button class="round-btn" data-act="body" data-k="${k}" data-d="-1" aria-label="${lo}">${k === 'h' ? ico('down', '⬇️') : ico('minus', '➖')}</button><div class="dots">${dots}</div><button class="round-btn" data-act="body" data-k="${k}" data-d="1" aria-label="${hi}">${k === 'h' ? ico('up', '⬆️') : ico('muscle', '💪')}</button></div>`;
       };
-      return `<div class="section-title">🎨 צבע גוף</div><div class="swatches">${skins}</div>
-        <div class="section-title">🙂 צורת פנים</div><div class="grid small">${faces}</div>
-        <div class="section-title">📏 גובה</div>${stepper('h', -2, 2, 'נמוכה יותר', 'גבוהה יותר')}
-        <div class="section-title">💪 שרירים</div>${stepper('m', 0, 3, 'פחות שרירים', 'יותר שרירים')}`;
+      return `<div class="section-title">צבע גוף</div><div class="swatches">${skins}</div>
+        <div class="section-title">צורת פנים</div><div class="grid small">${faces}</div>
+        <div class="section-title">גובה</div>${stepper('h', -2, 2, 'נמוכה יותר', 'גבוהה יותר')}
+        <div class="section-title">שרירים</div>${stepper('m', 0, 3, 'פחות שרירים', 'יותר שרירים')}`;
     }
     if (cat === 'face') {
       if (sub === 'eyes') return `<div class="grid">${DU.EYES.map((e) => tile(faceThumb((b) => (b.eyes.shape = e.id), 'e' + e.id), `data-act="eyes" data-id="${e.id}" aria-label="${e.name}"`, st.eyes.shape === e.id ? 'on' : '')).join('')}</div>`;
@@ -274,7 +275,7 @@
       return `<div class="grid">${DU.MOUTHS.map((e) => tile(faceThumb((b) => (b.mouth = e.id), 'm' + e.id), `data-act="mouth" data-id="${e.id}" aria-label="${e.name}"`, st.mouth === e.id ? 'on' : '')).join('')}</div>`;
     }
     if (cat === 'makeup') {
-      const none = (k) => tile('🚫', `data-act="makeup" data-k="${k}" data-id="" aria-label="בלי"`, 'none ' + (!st.makeup[k] ? 'on' : ''));
+      const none = (k) => tile(ico('none', '🚫'), `data-act="makeup" data-k="${k}" data-id="" aria-label="בלי"`, 'none ' + (!st.makeup[k] ? 'on' : ''));
       const opts = sub === 'blush' ? DU.BLUSH.map((b) => b.id) : sub === 'shadow' ? DU.SHADOWS : sub === 'lips' ? DU.LIPS : DU.SPARKLES.map((b) => b.id);
       return `<div class="grid">${none(sub)}${opts.map((id) => tile(faceThumb((b) => (b.makeup[sub] = id), sub + id), `data-act="makeup" data-k="${sub}" data-id="${id}"`, st.makeup[sub] === id ? 'on' : '')).join('')}</div>`;
     }
@@ -289,12 +290,12 @@
     if (ui.only) list = list.filter((it) => it.tags.includes(t.id) || (worn && worn.id === it.id));
     let html = '';
     if (slot === 'top' || slot === 'bottom') {
-      html += `<div class="toggle"><button class="${st.tuck ? 'on' : ''}" data-act="tuck" data-v="1">👕 חולצה בפנים</button><button class="${!st.tuck ? 'on' : ''}" data-act="tuck" data-v="0">👚 חולצה בחוץ</button></div>`;
+      html += `<div class="toggle"><button class="${st.tuck ? 'on' : ''}" data-act="tuck" data-v="1">${ico('tuckin', '👕')} חולצה בפנים</button><button class="${!st.tuck ? 'on' : ''}" data-act="tuck" data-v="0">${ico('tuckout', '👚')} חולצה בחוץ</button></div>`;
     }
-    html += `<div class="grid">${tile('🚫', `data-act="wear" data-slot="${slot}" data-id="" aria-label="בלי"`, 'none ' + (!worn ? 'on' : ''))}`;
+    html += `<div class="grid">${tile(ico('none', '🚫'), `data-act="wear" data-slot="${slot}" data-id="" aria-label="בלי"`, 'none ' + (!worn ? 'on' : ''))}`;
     html += list.map((it) => {
       const on = worn && worn.id === it.id, own = ownsItem(it);
-      return tile(itemThumb(it, on ? worn.c : lastColor[it.id]) + (own ? (it.price ? '<span class="new">✨</span>' : '') : lockTag(it.price)) + (it.tags.includes(t.id) ? `<span class="badge">${t.icon}</span>` : ''),
+      return tile(itemThumb(it, on ? worn.c : lastColor[it.id]) + (own ? (it.price ? `<span class="new">${ico('sparkle', '✨')}</span>` : '') : lockTag(it.price)) + (it.tags.includes(t.id) ? `<span class="badge">${t.icon}</span>` : ''),
         `data-act="wear" data-slot="${slot}" data-id="${it.id}" aria-label="${esc(it.name)}"`, (on ? 'on ' : '') + (own ? '' : 'locked'));
     }).join('');
     html += '</div>';
@@ -319,7 +320,7 @@
     const cols = $('.colors', body), colScroll = keepScroll && cols ? cols.scrollLeft : 0;
     let html = '';
     const filterChip = ui.cat === 'clothes' || ui.cat === 'acc' ? `<button class="sub only ${ui.only ? 'on' : ''}" data-act="only" aria-pressed="${ui.only}">${theme().icon} רק לאתגר</button>` : '';
-    if (SUBS[ui.cat]) html += `<div class="subs">${filterChip}${SUBS[ui.cat].map(([id, ico, nm]) => `<button class="sub ${ui.sub[ui.cat] === id ? 'on' : ''}" data-act="sub" data-id="${id}">${ico} ${nm}</button>`).join('')}</div>`;
+    if (SUBS[ui.cat]) html += `<div class="subs">${filterChip}${SUBS[ui.cat].map(([id, em, nm]) => `<button class="sub ${ui.sub[ui.cat] === id ? 'on' : ''}" data-act="sub" data-id="${id}">${ico(id === 'sparkle' ? 'glitter' : id, em)} ${nm}</button>`).join('')}</div>`;
     html += `<div class="grid-scroll" id="gridScroll">${panelContent()}</div>` + colorsRow();
     body.innerHTML = html;
     if (top) $('#gridScroll').scrollTop = top;
@@ -334,7 +335,7 @@
     const th = theme();
     const styles = DU.HAIRS.map((h) => tile(hairThumb(h.id) + (ownsHair(h) ? '' : lockTag(h.price)) + (DU.fits('hair', h, th.id) ? `<span class="badge">${th.icon}</span>` : ''), `data-act="hair" data-id="${h.id}" aria-label="${esc(h.name)}"`, (st.hair.style === h.id ? 'on ' : '') + (ownsHair(h) ? '' : 'locked'))).join('');
     const colors = DU.HAIR_COLORS.concat(DU.HAIR_SPECIAL).map((c) => `<button class="sw ${st.hair.color === c ? 'on' : ''} ${ownsHC(c) ? '' : 'locked'}" style="background:${DU.swatchCss(c)}" data-act="haircolor" data-c="${c}" aria-label="צבע שיער"></button>`).join('');
-    el.innerHTML = `<div class="hair-label"><span class="ico">💇‍♀️</span>שיער</div><div class="hair-styles">${styles}</div><div class="hair-colors">${colors}</div>`;
+    el.innerHTML = `<div class="hair-label"><span class="ico">${ico('hair', '💇‍♀️')}</span>שיער</div><div class="hair-styles">${styles}</div><div class="hair-colors">${colors}</div>`;
     if (sa != null) $('.hair-styles', el).scrollLeft = sa;
     if (sb != null) $('.hair-colors', el).scrollLeft = sb;
   }
@@ -374,17 +375,17 @@
     const pts = S.data.points, enough = pts >= pr.price;
     const m = openModal(`
       <div class="modal"><button class="x" data-act="close" aria-label="סגירה">✕</button>
-        <h3>✨ ${esc(pr.name)}</h3>
+        <h3>${ico('sparkle', '✨')} ${esc(pr.name)}</h3>
         <div class="preview-card">${DU.renderCard(preview)}</div>
         ${enough
-          ? `<button class="btn big" data-act="buy-yes">לקנות ב־<span dir="ltr">⭐ ${pr.price}</span></button>`
-          : `<p>חסרים לך עוד <b dir="ltr">⭐ ${pr.price - pts}</b><br>עוד קצת כוכבים וזה שלך!</p><button class="btn white" data-act="close">בסדר 👍</button>`}
-        <div class="note soft">יש לך <span dir="ltr">⭐ ${pts}</span></div>
+          ? `<button class="btn big" data-act="buy-yes">לקנות ב־<span dir="ltr">${starIco()} ${pr.price}</span></button>`
+          : `<p>חסרים לך עוד <b dir="ltr">${starIco()} ${pr.price - pts}</b><br>עוד קצת כוכבים וזה שלך!</p><button class="btn white" data-act="close">בסדר</button>`}
+        <div class="note soft">יש לך <span dir="ltr">${starIco()} ${pts}</span></div>
       </div>`, {
       'buy-yes'() {
         if (!S.buy(pr.key, pr.price)) return;
         snd.play('buy'); closeModal(m); confetti(60); setPointsUI(); cache.clear();
-        toast('🎉 ' + pr.name + ' שלך!');
+        toast(pr.name + ' שלך!');
         if (onBought) onBought();
       },
     });
@@ -414,7 +415,7 @@
         <h3>${head}</h3>
         <input class="name-input" id="nameInput" maxlength="${max}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" autocapitalize="off" enterkeyhint="done">
         ${ideas ? `<div class="row">${ideas.map((x) => `<button class="btn white small" data-act="idea" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}
-        <div class="row"><button class="btn big mint" data-act="save">שמירה ✓</button></div>
+        <div class="row"><button class="btn big mint" data-act="save">שמירה ${ico('check', '✓')}</button></div>
       </div>`, {
       idea(el) { $('#nameInput', m).value = el.dataset.v; snd.play('tap'); },
       save() { onSave($('#nameInput', m).value.trim()); closeModal(m); snd.play('pick'); },
@@ -425,10 +426,10 @@
   }
   function nameModal() {
     const ideas = NAME_IDEAS.slice().sort(() => Math.random() - 0.5).slice(0, 6);
-    inputModal({ head: '✏️ איך קוראים לה?', value: st.name || '', placeholder: 'השם שלה', ideas, max: 14, onSave: (v) => { st.name = v; drawName(); saveWip(); } });
+    inputModal({ head: ico('pencil', '✏️') + ' איך קוראים לה?', value: st.name || '', placeholder: 'השם שלה', ideas, max: 14, onSave: (v) => { st.name = v; drawName(); saveWip(); } });
   }
   function titleModal() {
-    inputModal({ head: '✏️ שם המשחק', value: S.data.title || '', placeholder: DEFAULT_TITLE, max: 26, onSave: (v) => { S.data.title = v; S.save(true); showHome(); } });
+    inputModal({ head: ico('pencil', '✏️') + ' שם המשחק', value: S.data.title || '', placeholder: DEFAULT_TITLE, max: 26, onSave: (v) => { S.data.title = v; S.save(true); showHome(); } });
   }
   function themeModal(intro) {
     const t = theme();
@@ -436,9 +437,9 @@
       <div class="modal">
         <div class="big-ico">${t.icon}</div>
         <h3>${intro ? 'האתגר שלך:' : 'האתגר:'} ${esc(themeLabel(t))}</h3>
-        <p>${esc(t.hint)}<br>בגדים, אביזרים ותסרוקות עם הסימן ${t.icon} נותנים עוד כוכבים ⭐</p>
-        <div class="row"><button class="btn big" data-act="close">יאללה! 🎨</button></div>
-        ${intro ? '' : '<div class="row"><button class="btn white small" data-act="other">🎲 אתגר אחר</button></div>'}
+        <p>${esc(t.hint)}<br>בגדים, אביזרים ותסרוקות עם הסימן ${t.icon} נותנים עוד כוכבים ${starIco()}</p>
+        <div class="row"><button class="btn big" data-act="close">יאללה!</button></div>
+        ${intro ? '' : `<div class="row"><button class="btn white small" data-act="other">${ico('dice', '🎲')} אתגר אחר</button></div>`}
       </div>`, {
       other() { round.theme = DU.pickTheme(round.theme); S.data.lastTheme = round.theme; saveWip(); closeModal(m); drawTheme(); drawPanel(true); drawHair(true); themeModal(true); },
     });
@@ -468,7 +469,7 @@
     saveWip();
     showResult(res, gain, alb);
   }
-  const resultButtons = () => `<div class="row"><button class="btn" data-act="r-new">✨ דמות חדשה</button><button class="btn white" data-act="r-edit">✏️ להמשיך לעצב</button><button class="btn white" data-act="r-photo">📷 תמונה</button></div>`;
+  const resultButtons = () => `<div class="row"><button class="btn" data-act="r-new">${ico('sparkle', '✨')} דמות חדשה</button><button class="btn white" data-act="r-edit">${ico('pencil', '✏️')} להמשיך לעצב</button><button class="btn white" data-act="r-photo">${ico('camera', '📷')} תמונה</button></div>`;
   function showResult(res, gain, alb) {
     const card = DU.renderCard(st);
     const handlers = {
@@ -488,7 +489,6 @@
       m.classList.add('show-back');
       const run = DU.show.run($('.show-host', m), { state: st, res, gain, theme: theme(), stickers: alb ? alb.fresh.length : 0, pagesDone: alb ? alb.done.length : 0 });
       Promise.resolve(run && run.done).then(() => setPointsUI());
-      if (res.ok) confetti(60);
       return;
     }
     if (!res.ok) {
@@ -556,7 +556,7 @@
     g.drawImage(img, 0, 0, W, H);
     const nm = (state.name || '').trim();
     if (nm) {
-      g.font = '800 78px system-ui, -apple-system, "Arial Hebrew", Arial, sans-serif';
+      g.font = '700 78px Fredoka, system-ui, -apple-system, "Arial Hebrew", Arial, sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'rtl';
       const tw = Math.min(W - 260, g.measureText(nm).width), bw = tw + 130, bh = 118, bx = (W - bw) / 2, by = H - bh - 28;
       g.fillStyle = 'rgba(255,255,255,.93)'; g.strokeStyle = '#ffb3d1'; g.lineWidth = 8;
@@ -574,9 +574,9 @@
     snd.play('camera');
     const m = openModal(`
       <div class="modal"><button class="x" data-act="close" aria-label="סגירה">✕</button>
-        <h3>📷 התמונה שלה</h3>
+        <h3>${ico('camera', '📷')} התמונה שלה</h3>
         <div class="preview-card" id="pngBox"><div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:40px">⏳</div></div>
-        <div class="row"><button class="btn big" data-act="png-save" disabled>⬇️ לשמור תמונה</button></div>
+        <div class="row"><button class="btn big" data-act="png-save" disabled>${ico('save', '⬇️')} לשמור תמונה</button></div>
         <div class="note soft" id="pngHint"></div>
       </div>`, {});
     try {
@@ -590,7 +590,7 @@
       $('#pngBox', m).innerHTML = `<img alt="" src="${url}">`;
       const btn = $('[data-act="png-save"]', m);
       btn.disabled = false;
-      if (canShare) btn.textContent = '📤 לשמור או לשלוח';
+      if (canShare) btn.innerHTML = ico('share', '📤') + ' לשמור או לשלוח';
       $('#pngHint', m).textContent = touch ? 'אפשר גם ללחוץ לחיצה ארוכה על התמונה' : '';
       m._handlers['png-save'] = async () => {
         if (canShare) {
@@ -612,10 +612,10 @@
     const list = S.data.gallery;
     app.innerHTML = `
       <div class="screen">
-        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">🏠</button><h2>🖼️ הגלריה שלי</h2><div class="stars-pill">⭐ <span>${S.data.points}</span></div></div>
+        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">${ico('home', '🏠')}</button><h2>${ico('gallery', '🖼️')} הגלריה שלי</h2><div class="stars-pill">${starIco()} <span>${S.data.points}</span></div></div>
         <div class="scroll card-panel">${list.length
-          ? `<div class="shelf">${list.map((g) => `<button class="gcard" data-act="g-open" data-id="${g.id}"><div class="pic">${DU.renderCard(g.state, { par: 'xMidYMid slice' })}</div><div class="meta"><span>${esc((g.state.name || '').trim() || 'בלי שם')}</span><span class="sc">⭐ ${g.score || 0}</span></div></button>`).join('')}</div>`
-          : '<div class="empty-box"><span class="ico">🖼️</span>עוד אין כאן דמויות.<br>מעצבים דמות, לוחצים "סיימתי" — והיא מגיעה לכאן!</div>'}</div>
+          ? `<div class="shelf">${list.map((g) => `<button class="gcard" data-act="g-open" data-id="${g.id}"><div class="pic">${DU.renderCard(g.state, { par: 'xMidYMid slice' })}</div><div class="meta"><span>${esc((g.state.name || '').trim() || 'בלי שם')}</span><span class="sc">${starIco()} ${g.score || 0}</span></div></button>`).join('')}</div>`
+          : `<div class="empty-box"><span class="ico">${ico('gallery', '🖼️')}</span>עוד אין כאן דמויות.<br>מעצבים דמות, לוחצים "סיימתי" — והיא מגיעה לכאן!</div>`}</div>
       </div>`;
   }
   function galleryModal(id) {
@@ -623,9 +623,9 @@
     snd.play('tap');
     const m = openModal(`
       <div class="modal"><button class="x" data-act="close" aria-label="סגירה">✕</button>
-        <h3>${esc((g.state.name || '').trim() || 'בלי שם')} <span dir="ltr" style="color:#a36b00">⭐ ${g.score || 0}</span></h3>
+        <h3>${esc((g.state.name || '').trim() || 'בלי שם')} <span dir="ltr" style="color:#a36b00">${starIco()} ${g.score || 0}</span></h3>
         <div class="preview-card">${DU.renderCard(g.state)}</div>
-        <div class="row"><button class="btn" data-act="edit">✏️ לעצב אותה</button><button class="btn white" data-act="photo">📷 תמונה</button><button class="btn white" data-act="del" aria-label="מחיקה">🗑️</button></div>
+        <div class="row"><button class="btn" data-act="edit">${ico('pencil', '✏️')} לעצב אותה</button><button class="btn white" data-act="photo">${ico('camera', '📷')} תמונה</button><button class="btn white" data-act="del" aria-label="מחיקה">${ico('trash', '🗑️')}</button></div>
       </div>`, {
       edit() {
         st = clone(g.state);
@@ -634,7 +634,7 @@
         ui.cat = 'clothes'; saveWip(); showEditor(); themeModal(true);
       },
       photo() { photoModal(g.state); },
-      del() { confirmModal('למחוק אותה מהגלריה?', '🗑️ כן, למחוק', 'לא', () => { S.removeGallery(id); if (S.data.wip && S.data.wip.round && S.data.wip.round.gid === id) S.data.wip.round.saved = false; closeAll(); showGallery(); snd.play('off'); }); },
+      del() { confirmModal('למחוק אותה מהגלריה?', 'כן, למחוק', 'לא', () => { S.removeGallery(id); if (S.data.wip && S.data.wip.round && S.data.wip.round.gid === id) S.data.wip.round.saved = false; closeAll(); showGallery(); snd.play('off'); }); },
     });
   }
 
@@ -655,7 +655,7 @@
     screen = 'shop'; closeAll();
     const base = S.data.wip ? S.data.wip.state : demoGirl();
     const all = products();
-    const groups = [['👗 בגדים ונעליים', (p) => p.kind === 'item' && ['top', 'bottom', 'dress', 'shoes', 'socks'].includes(p.slot)], ['🎀 אביזרים', (p) => p.kind === 'item' && !['top', 'bottom', 'dress', 'shoes', 'socks'].includes(p.slot)], ['💇‍♀️ שיער', (p) => p.kind === 'hair' || p.kind === 'hc'], ['🖼️ רקעים', (p) => p.kind === 'bg']];
+    const groups = [['בגדים ונעליים', (p) => p.kind === 'item' && ['top', 'bottom', 'dress', 'shoes', 'socks'].includes(p.slot)], ['אביזרים', (p) => p.kind === 'item' && !['top', 'bottom', 'dress', 'shoes', 'socks'].includes(p.slot)], ['שיער', (p) => p.kind === 'hair' || p.kind === 'hc'], ['רקעים', (p) => p.kind === 'bg']];
     const pic = (p) => {
       if (p.kind === 'item') return itemThumb(DU.itemById[p.id], null, base);
       if (p.kind === 'hair') return hairThumb(p.id, base);
@@ -667,13 +667,13 @@
       if (!list.length) return '';
       return `<div class="section-title" style="margin:14px 16px 0">${name}</div><div class="shelf shop">${list.map((p) => {
         const own = S.owns(p.key);
-        return `<button class="shop-tile ${own ? 'owned' : ''}" data-act="s-buy" data-key="${p.key}"><div class="pic">${pic(p)}</div><div class="nm">${esc(p.name)}</div><div class="pr">${own ? '✓ שלך' : '⭐ ' + p.price}</div></button>`;
+        return `<button class="shop-tile ${own ? 'owned' : ''}" data-act="s-buy" data-key="${p.key}"><div class="pic">${pic(p)}</div><div class="nm">${esc(p.name)}</div><div class="pr">${own ? ico('check', '✓') + ' שלך' : starIco() + ' ' + p.price}</div></button>`;
       }).join('')}</div>`;
     }).join('');
     const sc = $('.scroll'), top = screen === 'shop' && sc ? sc.scrollTop : 0;
     app.innerHTML = `
       <div class="screen">
-        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">🏠</button><h2>🛍️ החנות</h2><div class="stars-pill">⭐ <span>${S.data.points}</span></div></div>
+        <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">${ico('home', '🏠')}</button><h2>${ico('shop', '🛍️')} החנות</h2><div class="stars-pill">${starIco()} <span>${S.data.points}</span></div></div>
         <div class="scroll card-panel" id="shopScroll">${html}</div>
       </div>`;
     if (top) $('#shopScroll').scrollTop = top;
@@ -714,14 +714,14 @@
     home() { snd.play('tap'); showHome(); },
     mute() {
       S.data.mute = !S.data.mute; S.save(true); snd.setMuted(S.data.mute);
-      document.querySelectorAll('[data-act="mute"]').forEach((b) => (b.textContent = muteIcon()));
+      document.querySelectorAll('[data-act="mute"]').forEach((b) => (b.innerHTML = muteIcon()));
       snd.play('tap');
     },
     title() { snd.play('tap'); titleModal(); },
     new() {
       snd.play('tap');
       const w = S.data.wip;
-      if (w && !w.round.saved && DU.effort(w.state).total >= 3) confirmModal('להתחיל דמות חדשה?<br><small>הדמות שבאמצע לא נשמרה בגלריה.</small>', '✨ כן, דמות חדשה', 'להמשיך איתה', showPick);
+      if (w && !w.round.saved && DU.effort(w.state).total >= 3) confirmModal('להתחיל דמות חדשה?<br><small>הדמות שבאמצע לא נשמרה בגלריה.</small>', 'כן, דמות חדשה', 'להמשיך איתה', showPick);
       else showPick();
     },
     continue() { snd.play('tap'); const w = S.data.wip; if (!w) return; st = w.state; round = w.round; if (!st.makeup) st.makeup = {}; showEditor(); },
@@ -788,7 +788,7 @@
     'g-open'(el) { galleryModal(el.dataset.id); },
     's-buy'(el) {
       const pr = products().find((p) => p.key === el.dataset.key); if (!pr) return;
-      if (S.owns(pr.key)) { snd.play('tap'); return toast('✓ כבר שלך!'); }
+      if (S.owns(pr.key)) { snd.play('tap'); return toast('כבר שלך!'); }
       buyModal(pr, S.data.wip ? S.data.wip.state : demoGirl(), () => { const sc = $('#shopScroll'), top = sc ? sc.scrollTop : 0; showShop(); if ($('#shopScroll')) $('#shopScroll').scrollTop = top; });
     },
   };

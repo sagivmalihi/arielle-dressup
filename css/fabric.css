@@ -1,1 +1,84 @@
-/* fabric.css */
+/* fabric.css — the "הבד שלי" studio (fabric.js). Opens inside .modal.wide.fabric-modal */
+.modal.fabric-modal { padding: 18px; width: 880px; overflow: auto; }
+.fabric-host { min-width: 0; }
+.modal.fabric-modal > .x { z-index: 5; top: 10px; inset-inline-end: 10px; background: #fff; box-shadow: 0 0 0 2px #e3d6f3, 0 3px 8px rgba(75, 53, 100, .18); }
+.fab { display: grid; grid-template-columns: minmax(0, 1fr) clamp(230px, 33%, 290px); gap: 16px; align-items: stretch; text-align: start; -webkit-user-select: none; user-select: none; }
+.fab * { box-sizing: border-box; }
+
+/* ---- controls ---- */
+.fab-panel { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.fab-head { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.fab-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 28px; line-height: 1; color: var(--ink); white-space: nowrap; }
+.fab-title svg { width: 34px; height: 34px; flex: none; }
+.fab-item { font-weight: 600; font-size: 16px; color: var(--ink-soft); background: #f3eafb; border-radius: 999px; padding: 6px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.fab-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fab-label { font-weight: 600; font-size: 16px; line-height: 1.1; color: var(--ink-soft); white-space: nowrap; }
+.fab-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.fab-line > .fab-label { flex: 0 0 62px; }
+
+.fab-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 3px; }
+.fab-tile { position: relative; height: 52px; border-radius: 14px; background: #fff; overflow: visible;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #e3d6f3, 0 5px 0 4px rgba(75, 53, 100, .1); transition: transform .16s cubic-bezier(.3, 1.6, .5, 1), box-shadow .16s; }
+.fab-tile svg { display: block; width: 100%; height: 100%; border-radius: 14px; }
+.fab-tile:active { transform: scale(.93); }
+.fab-tile[aria-pressed="true"] { box-shadow: 0 0 0 3px #fff, 0 0 0 7px var(--pink); transform: translateY(-2px); }
+.fab-tile[aria-pressed="true"]::after, .fab-sw[aria-pressed="true"]::after {
+  content: ""; position: absolute; top: -9px; left: -9px; width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 2px #fff;
+  background: var(--pink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.2 10.4l3.2 3.2 6.4-7' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 100% no-repeat; }
+.fab-tile.fab-dice { display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 700; font-size: 15px; color: var(--purple-d); background: #f6f0ff; box-shadow: 0 0 0 3px #fff, 0 0 0 5px #d9cbf7, 0 5px 0 4px rgba(75, 53, 100, .1); }
+.fab-tile.fab-dice svg { width: 26px; height: 26px; flex: none; border-radius: 0; }
+.fab-tile.fab-dice:active svg { transform: rotate(40deg); }
+
+.fab-sws { display: flex; gap: 7px; padding: 5px 4px 7px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; min-width: 0; }
+.fab-sws::-webkit-scrollbar { display: none; }
+.fab-sw { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px #dccbee, 0 3px 0 1px rgba(75, 53, 100, .1); transition: transform .16s cubic-bezier(.3, 1.6, .5, 1); }
+.fab-sw:active { transform: scale(.88); }
+.fab-sw[aria-pressed="true"] { box-shadow: 0 0 0 3.5px var(--pink); transform: scale(1.06); }
+.fab-sw[aria-pressed="true"]::after { top: -7px; left: -7px; width: 18px; height: 18px; }
+
+.fab-opts { display: flex; flex: 1; flex-wrap: wrap; gap: 9px; min-width: 0; }
+.fab-opt { flex: none; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 15px; background: #fff; padding: 0;
+  box-shadow: 0 0 0 2.5px #e7dcf5, 0 4px 0 2px rgba(75, 53, 100, .09); transition: transform .16s cubic-bezier(.3, 1.6, .5, 1); }
+.fab-opt:active { transform: scale(.9); }
+.fab-opt[aria-pressed="true"] { box-shadow: 0 0 0 4px var(--pink); }
+.fab-opt svg { display: block; width: 100%; height: 100%; }
+.fab-opt i { display: block; border-radius: 50%; background: var(--purple); }
+.fab-foot { display: flex; justify-content: flex-start; margin-top: auto; padding-top: 4px; }
+.fab-done { min-height: 52px; font-size: 22px; padding: 8px 30px; display: inline-flex; align-items: center; gap: 8px; }
+.fab-done svg { width: 26px; height: 26px; }
+/* with a plain fabric the print colour and size are waiting: softer, but a tap still works (it turns the print on) */
+.fab-plain [data-row="fg"], .fab-plain [data-fab="size"] { opacity: .55; }
+
+/* ---- the cutting table with the preview ---- */
+.fab-stage { position: relative; min-width: 0; min-height: 320px; border-radius: 26px; overflow: hidden; background-color: #ece5fc;
+  background-image: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, .88), rgba(255, 255, 255, 0) 62%), linear-gradient(rgba(255, 255, 255, .8) 2px, transparent 2px), linear-gradient(90deg, rgba(255, 255, 255, .8) 2px, transparent 2px);
+  background-size: auto, 30px 30px, 30px 30px; background-position: 0 0, 9px 12px, 9px 12px; box-shadow: inset 0 0 0 5px #fff, 0 0 0 2px #e3d6f3; }
+.fab-art { position: absolute; inset: 8px 8px 34px 8px; transform-origin: 50% 100%; }
+.fab-art svg { display: block; width: 100%; height: 100%; }
+.fab-art.fab-pop { animation: fab-pop .36s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes fab-pop { 0% { transform: scale(1); } 35% { transform: scale(1.045, .97); } 70% { transform: scale(.99, 1.012); } 100% { transform: scale(1); } }
+.fab-tape { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; background-color: #ffd95e; border-top: 3px solid #f0bd2c;
+  background-image: linear-gradient(90deg, #8a6500 0 2px, transparent 2px), linear-gradient(90deg, #8a6500 0 1.5px, transparent 1.5px);
+  background-size: 60px 16px, 15px 8px; background-repeat: repeat-x; background-position: 8px 0, 8px 0; }
+
+/* narrow or upright screens: the preview goes on top */
+@media (max-width: 780px), (max-aspect-ratio: 1/1) {
+  .fab { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .fab-stage { order: -1; min-height: 0; height: min(34vh, 330px); }
+}
+@media (max-width: 520px) {
+  .fab-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fab-title { font-size: 24px; }
+}
+/* low landscape screens: tighten so everything fits without scrolling */
+@media (max-height: 640px) and (min-aspect-ratio: 1/1) {
+  .fab-panel { gap: 7px; }
+  .fab-tile { height: 46px; }
+  .fab-opt { width: 46px; height: 46px; }
+  .fab-done { min-height: 46px; font-size: 20px; }
+  .fab-stage { min-height: 260px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab-art.fab-pop { animation: none; }
+  .fab-tile, .fab-sw, .fab-opt { transition: none; }
+}
