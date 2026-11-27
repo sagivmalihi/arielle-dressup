@@ -16,9 +16,10 @@
 
   /* how much the player changed from the starting look */
   DU.effort = function (state) {
-    const g = (DU.GIRLS || []).find((x) => x.id === state.base) || {};
-    const wear = state.wear || {}, mk = state.makeup || {};
-    const worn = Object.keys(wear).filter((k) => wear[k] && DU.itemById[wear[k].id]).length;
+    const g = (DU.baseOf ? DU.baseOf(state.base) : (DU.GIRLS || []).find((x) => x.id === state.base)) || {};
+    const wear = state.wear || {}, mk = state.makeup || {}, gw = g.wear || {}, gb = g.body || {};
+    // what she came with (a special character's own accessory) is not the player's choice
+    const worn = Object.keys(wear).filter((k) => wear[k] && DU.itemById[wear[k].id] && !(gw[k] && gw[k].id === wear[k].id && (wear[k].c || null) === (gw[k].c || null))).length;
     const gm = g.makeup || {};
     const makeup = ['blush', 'shadow', 'lips', 'sparkle'].filter((k) => mk[k] && mk[k] !== gm[k]).length;
     const ch = {
@@ -28,8 +29,8 @@
       eyeColor: !!(g.eyes && state.eyes.color !== g.eyes.color),
       brows: state.brows !== g.brows,
       mouth: state.mouth !== g.mouth,
-      height: !!(state.body && state.body.h),
-      muscles: !!(state.body && state.body.m),
+      height: ((state.body && state.body.h) || 0) !== (gb.h || 0),
+      muscles: ((state.body && state.body.m) || 0) !== (gb.m || 0),
       bg: state.bg !== 'bedroom',
       skin: !!(g.skin && (state.skin !== g.skin || state.face !== g.face)),
     };

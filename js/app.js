@@ -51,6 +51,7 @@
   function girlState(g) {
     const s = DU.defaultState();
     Object.assign(s, { base: g.id, skin: g.skin, face: g.face, eyes: clone(g.eyes), brows: g.brows, mouth: g.mouth, hair: clone(g.hair) });
+    if (g.kind) Object.assign(s, { kind: g.kind, body: clone(g.body || s.body), wear: clone(g.wear || {}) }); // a special character (species.js)
     Object.assign(s.makeup, g.makeup || {});
     return s;
   }
@@ -80,10 +81,12 @@
     const v = make(); cache.set(key, v); return v;
   }
   const hairKey = (s) => s.hair.style + s.hair.color;
+  const skinKey = (s) => (s.kind || '') + s.skin;
   /* a bare version of the current girl, to preview one thing on */
   function bare(s, withFace) {
     const b = DU.defaultState();
     Object.assign(b, { skin: s.skin, face: s.face, hair: clone(s.hair), eyes: clone(s.eyes), brows: s.brows, mouth: s.mouth });
+    if (s.kind) b.kind = s.kind;
     if (withFace) b.makeup = clone(s.makeup);
     return b;
   }
@@ -91,7 +94,7 @@
     src = src || st || demoGirl();
     const c = it.fixed ? '' : color || it.color;
     const head = HEAD_SLOTS.includes(it.slot) || it.slot === 'wings';
-    return cached(['it', it.id, c, src.skin, head ? hairKey(src) + src.face : ''].join('|'), () => {
+    return cached(['it', it.id, c, skinKey(src), head ? hairKey(src) + src.face : ''].join('|'), () => {
       const b = bare(src);
       b.wear = { [it.slot]: { id: it.id, c: c || undefined } };
       if (it.slot === 'top') b.tuck = false;
@@ -99,13 +102,13 @@
     });
   }
   function faceThumb(mut, key) {
-    return cached(['face', key, st.skin, st.face, hairKey(st), JSON.stringify(st.eyes), st.brows, st.mouth, JSON.stringify(st.makeup)].join('|'), () => {
+    return cached(['face', key, skinKey(st), st.face, hairKey(st), JSON.stringify(st.eyes), st.brows, st.mouth, JSON.stringify(st.makeup)].join('|'), () => {
       const b = bare(st, true); mut(b); return DU.renderThumb(b, 'face');
     });
   }
   function hairThumb(styleId, src) {
     src = src || st;
-    return cached(['hair', styleId, src.hair.color, src.skin, src.face, JSON.stringify(src.eyes)].join('|'), () => {
+    return cached(['hair', styleId, src.hair.color, skinKey(src), src.face, JSON.stringify(src.eyes)].join('|'), () => {
       const b = bare(src); b.hair.style = styleId; return DU.renderThumb(b, 'hair');
     });
   }
@@ -161,14 +164,20 @@
   /* ---------------- pick a girl ---------------- */
   function showPick() {
     screen = 'pick';
+    const specials = DU.SPECIALS || [];
+    /* the special characters stand first, in a column of their own, with their name on a tag */
+    const card = (g, cls = '') => {
+      const sp = g.kind && DU.SPECIES[g.kind];
+      return `<button class="girl ${cls}" data-act="pick" data-id="${g.id}"${sp ? ` aria-label="${esc(sp.name)}"` : ''}>${DU.renderThumb(girlState(g), 'girl')}${sp ? `<span class="girl-tag">${ico('sparkle', '✨')} ${esc(sp.name)}</span>` : ''}</button>`;
+    };
     app.innerHTML = `
       <div class="screen">
         <div class="bar"><button class="round-btn" data-act="home" aria-label="בית">${ico('home', '🏠')}</button><h2>בחרי דמות</h2></div>
-        <div class="scroll"><div class="girls pick">${DU.GIRLS.map((g) => `<button class="girl" data-act="pick" data-id="${g.id}">${DU.renderThumb(girlState(g), 'girl')}</button>`).join('')}</div></div>
+        <div class="scroll"><div class="girls pick ${specials.length ? 'with-special' : ''}">${specials.map((g) => card(g, 'special')).join('')}${DU.GIRLS.map((g) => card(g)).join('')}</div></div>
       </div>`;
   }
   function startRound(girlId) {
-    const g = DU.GIRLS.find((x) => x.id === girlId) || DU.GIRLS[0];
+    const g = (DU.baseOf && DU.baseOf(girlId)) || DU.GIRLS[0];
     st = girlState(g);
     round = { theme: DU.pickTheme(S.data.lastTheme), awarded: 0, gid: 'c' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36) };
     S.data.lastTheme = round.theme;
@@ -256,16 +265,17 @@
   function panelContent() {
     const cat = ui.cat, sub = ui.sub[cat], t = theme();
     if (cat === 'girl') {
-      const faces = Object.keys(DU.FACES).map((f) => tile(cached(['fs', f, st.skin, hairKey(st), JSON.stringify(st.eyes), st.brows, st.mouth].join('|'), () => { const b = bare(st); b.face = f; return DU.renderThumb(b, 'face'); }),
+      const sp = DU.species ? DU.species(st) : null; // a special character: fur colours, and her own head (no face shapes)
+      const faces = sp ? '' : Object.keys(DU.FACES).map((f) => tile(cached(['fs', f, st.skin, hairKey(st), JSON.stringify(st.eyes), st.brows, st.mouth].join('|'), () => { const b = bare(st); b.face = f; return DU.renderThumb(b, 'face'); }),
         `data-act="faceshape" data-id="${f}" aria-label="${DU.FACE_NAMES[f] || f}"`, st.face === f ? 'on' : '')).join('');
-      const skins = DU.SKINS.map((c) => `<button class="sw big ${st.skin === c ? 'on' : ''}" style="background:${c}" data-act="skin" data-c="${c}" aria-label="צבע גוף"></button>`).join('');
+      const skins = (sp ? sp.furs : DU.SKINS).map((c) => `<button class="sw big ${st.skin === c ? 'on' : ''}" style="background:${c}" data-act="skin" data-c="${c}" aria-label="${sp ? 'צבע פרווה' : 'צבע גוף'}"></button>`).join('');
       const stepper = (k, min, max, lo, hi) => {
         const v = st.body[k] || 0; let dots = '';
         for (let i = min; i <= max; i++) dots += `<span class="dot ${i === v ? 'on' : ''}"></span>`;
         return `<div class="stepper"><button class="round-btn" data-act="body" data-k="${k}" data-d="-1" aria-label="${lo}">${k === 'h' ? ico('down', '⬇️') : ico('minus', '➖')}</button><div class="dots">${dots}</div><button class="round-btn" data-act="body" data-k="${k}" data-d="1" aria-label="${hi}">${k === 'h' ? ico('up', '⬆️') : ico('muscle', '💪')}</button></div>`;
       };
-      return `<div class="section-title">צבע גוף</div><div class="swatches">${skins}</div>
-        <div class="section-title">צורת פנים</div><div class="grid small">${faces}</div>
+      return `<div class="section-title">${sp ? 'צבע פרווה' : 'צבע גוף'}</div><div class="swatches">${skins}</div>
+        ${sp ? '' : `<div class="section-title">צורת פנים</div><div class="grid small">${faces}</div>`}
         <div class="section-title">גובה</div>${stepper('h', -2, 2, 'נמוכה יותר', 'גבוהה יותר')}
         <div class="section-title">שרירים</div>${stepper('m', 0, 3, 'פחות שרירים', 'יותר שרירים')}`;
     }
@@ -333,7 +343,8 @@
     const a = $('.hair-styles', el), b = $('.hair-colors', el);
     const sa = keepScroll && a ? a.scrollLeft : null, sb = keepScroll && b ? b.scrollLeft : null;
     const th = theme();
-    const styles = DU.HAIRS.map((h) => tile(hairThumb(h.id) + (ownsHair(h) ? '' : lockTag(h.price)) + (DU.fits('hair', h, th.id) ? `<span class="badge">${th.icon}</span>` : ''), `data-act="hair" data-id="${h.id}" aria-label="${esc(h.name)}"`, (st.hair.style === h.id ? 'on ' : '') + (ownsHair(h) ? '' : 'locked'))).join('');
+    const noHair = DU.species && DU.species(st) ? tile(hairThumb('none'), 'data-act="hair" data-id="none" aria-label="בלי שיער"', st.hair.style === 'none' ? 'on' : '') : ''; // a special character can go with just her fur
+    const styles = noHair + DU.HAIRS.map((h) => tile(hairThumb(h.id) + (ownsHair(h) ? '' : lockTag(h.price)) + (DU.fits('hair', h, th.id) ? `<span class="badge">${th.icon}</span>` : ''), `data-act="hair" data-id="${h.id}" aria-label="${esc(h.name)}"`, (st.hair.style === h.id ? 'on ' : '') + (ownsHair(h) ? '' : 'locked'))).join('');
     const colors = DU.HAIR_COLORS.concat(DU.HAIR_SPECIAL).map((c) => `<button class="sw ${st.hair.color === c ? 'on' : ''} ${ownsHC(c) ? '' : 'locked'}" style="background:${DU.swatchCss(c)}" data-act="haircolor" data-c="${c}" aria-label="צבע שיער"></button>`).join('');
     el.innerHTML = `<div class="hair-label"><span class="ico">${ico('hair', '💇‍♀️')}</span>שיער</div><div class="hair-styles">${styles}</div><div class="hair-colors">${colors}</div>`;
     if (sa != null) $('.hair-styles', el).scrollLeft = sa;
@@ -662,7 +673,7 @@
     const pic = (p) => {
       if (p.kind === 'item') return itemThumb(DU.itemById[p.id], null, base);
       if (p.kind === 'hair') return hairThumb(p.id, base);
-      if (p.kind === 'hc') return cached('hc|' + p.id + base.skin + base.hair.style, () => { const b = bare(base); b.hair.color = p.id; return DU.renderThumb(b, 'hair'); });
+      if (p.kind === 'hc') return cached('hc|' + p.id + skinKey(base) + base.hair.style, () => { const b = bare(base); b.hair.color = p.id; if (b.hair.style === 'none') b.hair.style = 'long'; return DU.renderThumb(b, 'hair'); });
       return bgThumb(DU.backgrounds.find((b) => b.id === p.id));
     };
     const html = groups.map(([name, f]) => {
@@ -810,6 +821,7 @@
       st.bg = b.id; snd.play('pick'); changed();
     },
     hair(el) {
+      if (el.dataset.id === 'none') { st.hair.style = 'none'; snd.play('pick'); changed('hair'); return; }
       const h = DU.HAIRS.find((x) => x.id === el.dataset.id);
       if (!ownsHair(h)) return buyModal({ key: 'hair:' + h.id, kind: 'hair', id: h.id, name: 'תסרוקת ' + h.name, price: h.price }, st, () => { st.hair.style = h.id; changed('hair'); });
       st.hair.style = h.id; snd.play('pick'); changed('hair');

@@ -34,6 +34,7 @@
     const legs = [-1, 1].map((s) => DU.tube(R.legSpine(s), 0.7, 0.3));
     const feet = [-1, 1].map((s) => footD(R, s));
     let out = DU.union([R.torsoD, ...legs, ...feet], sk.fill, sk.line);
+    if (sk.under) out += sk.under(R); // a special character: light fur on the chest, fur ticks (species.js)
     // soft shading: under the chin, inner legs
     out += `<path d="M${n(cx - nk)} ${n(neckY - 4)}L${n(cx + nk)} ${n(neckY - 4)}L${n(cx + nk)} ${n(neckY + 9)}Q${n(cx)} ${n(neckY + 27)} ${n(cx - nk)} ${n(neckY + 9)}Z" fill="${sk.shade}"/>`;
     [-1, 1].forEach((s) => {

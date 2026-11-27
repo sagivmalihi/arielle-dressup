@@ -22,6 +22,7 @@ lines up on every height and build.
 | `js/clothes*.js`, `js/dresses2.js`, `js/feet*.js`, `js/acc-head*.js`, `js/acc-body*.js` | the items |
 | `js/backgrounds*.js` | the scenes |
 | `js/catalog.js` | item registry, palette, the challenges (places and styles), the base girls, body colors |
+| `js/species.js` | the special characters (a wolf, a capybara): fur, an animal head, ears and a tail on the same body, so every item fits them |
 | `js/render.js` | layer order, the card, thumbnails |
 | `js/score.js` | the "סיימתי" rating and the "invested" rule |
 | `js/props.js` | more things to hold, and the pets and objects that stand next to her (`side` slot) |

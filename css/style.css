@@ -99,6 +99,14 @@ svg { display: block; width: 100%; height: 100%; }
 .girl:nth-child(odd) { background: #fff0f7; }
 .girl:nth-child(even) { background: #eef3ff; }
 .girl:nth-child(3n) { background: #f3ecff; }
+/* the special characters (a wolf, a capybara…): first, in a column of their own, with a golden frame and a name tag */
+.girls.with-special { grid-template-columns: repeat(7, minmax(0, 1fr)); width: min(100%, calc((var(--vh) - var(--top-h) - 64px) / 2 * .75 * 7 + 72px)); }
+.girl { position: relative; }
+.girl.special { background: linear-gradient(160deg, #fff6c9, #ffe3f1); border-color: #ffd54d; box-shadow: 0 8px 20px rgba(230, 160, 0, .28), 0 0 0 3px #fff inset; }
+.girls.with-special .girl.special:nth-child(1) { grid-column: 1; grid-row: 1; }
+.girls.with-special .girl.special:nth-child(2) { grid-column: 1; grid-row: 2; }
+.girl-tag { position: absolute; inset-inline: 6px; bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; background: rgba(255, 255, 255, .92); color: #a36b00; font-weight: 900; font-size: clamp(12px, 1.5vw, 17px); border-radius: 999px; padding: 3px 6px; white-space: nowrap; }
+.girl-tag svg { width: 1.1em; height: 1.1em; flex: none; }
 
 /* ---------- editor ---------- */
 .editor {
@@ -263,8 +271,14 @@ svg { display: block; width: 100%; height: 100%; }
   .home { flex-direction: column; gap: 18px; }
   .home-art { height: calc(var(--vh) * .46); max-width: 80vw; }
   .result { flex-direction: column; }
-  .girls { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(100%, calc((var(--vh) - var(--top-h) - 76px) / 3 * .75 * 4 + 40px)); }
+  .girls, .girls.with-special { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(100%, calc((var(--vh) - var(--top-h) - 76px) / 3 * .75 * 4 + 40px)); }
+  .girls.with-special .girl.special:nth-child(n) { grid-column: auto; grid-row: auto; }
+  .girl-tag { font-size: clamp(11px, 2.2vw, 17px); }
   .result .pic { width: min(220px, 50vw); }
+}
+@media (max-height: 520px) {
+  .girl-tag { font-size: 10px; padding: 1px 3px; inset-inline: 3px; bottom: 3px; }
+  .girl-tag svg { display: none; }
 }
 @media (max-height: 620px) {
   :root { --top-h: 52px; --hair-h: 96px; }

@@ -9,6 +9,7 @@
    mirrored left-right. opts.helmet = a colour puts a bike helmet on her head instead of the hat (front and back).
    opts.only = [slots] draws just those items, with no body and no head (for a pet or a prop on its own).
    opts.heldTag = true (with opts.rig) wraps what she holds in <g data-held="l|r">.
+   state.kind = 'wolf' | 'capy' draws a special character (species.js): fur, an animal head, ears, a tail (part "tail").
    Items return either a string (goes to their category's default layer) or an object
    { layerName: svg }. Layers named back/body/socks/shoes/sleeves/wrist/held/over/front use
    body coordinates; headBack/head use head coordinates. */
@@ -44,7 +45,8 @@
   DU.renderCharacter = function (state, opts = {}) {
     const uid = opts.uid || DU.uid('c');
     const R = DU.rig(state.body);
-    const sk = DU.skinPaint(state.skin);
+    const SP = (DU.SPECIES && DU.SPECIES[state.kind]) || null; // a special character: fur, an animal head, ears, a tail
+    const sk = SP ? SP.paint(state.skin) : DU.skinPaint(state.skin);
     const defs = [];
     let idc = 0;
     const ctx = {
@@ -67,7 +69,7 @@
     const add = (name, svg, slot) => {
       if (!svg) return;
       if (back && name === 'over' && slot !== 'hand' && slot !== 'bracelet') return; // things on the chest are not seen from behind
-      if (back && name === 'head' && slot === 'earrings') name = 'ears';
+      if ((back || SP) && name === 'head' && slot === 'earrings') name = 'ears'; // an animal wears them on its own ears
       if (rig && name === 'held' && slot === 'hand') armBits.heldL += svg;
       else if (rig && name === 'held' && slot === 'bag') armBits.heldR += svg;
       else if (rig && name === 'over' && slot === 'hand') armBits.overL += svg;
@@ -129,11 +131,13 @@
     });
 
     // hair
-    const hairStyle = (DU.HAIRS || []).find((x) => x.id === (state.hair && state.hair.style)) || (DU.HAIRS || [])[0];
+    const bald = !!(state.hair && state.hair.style === 'none'); // just fur (the special characters)
+    const hairStyle = bald ? null : (DU.HAIRS || []).find((x) => x.id === (state.hair && state.hair.style)) || (DU.HAIRS || [])[0];
     const hairSpec = (state.hair && state.hair.color) || '#4a2f27';
     const HP = DU.paint(hairSpec, uid + 'hair', [-110, -130, 200, 420]);
     if (HP.defs) defs.push(HP.defs);
-    const browColor = DU.mix(HP.base, '#2b1630', DU.lum(HP.base) > 0.6 ? 0.5 : 0.35);
+    const browBase = bald && SP ? sk.fill : HP.base;
+    const browColor = bald && SP && DU.lum(browBase) < 0.3 ? DU.mix(browBase, '#ffffff', 0.5) : DU.mix(browBase, '#2b1630', DU.lum(browBase) > 0.6 ? 0.5 : 0.35);
     const hairBack = hairStyle && hairStyle.back ? hairStyle.back(HP) : '';
     const hairFront = hairStyle && hairStyle.front ? hairStyle.front(HP) : '';
     const hairTop = hairStyle && hairStyle.top && !(hat && hat.coversTop) ? hairStyle.top(HP) : '';
@@ -142,6 +146,15 @@
     const head = (svg) => (svg ? `<g transform="${headT}">${svg}</g>` : '');
 
     const helmetSvg = helmet ? DU.drawHelmet(helmet, back) : '';
+    /* a special character: her own head, her ears over the hair (and over a helmet), earrings on those ears, a tail */
+    const headBase = SP ? SP.head(sk, { uid, mouth: state.mouth, bald }) : DU.body.head(sk, state.face);
+    const earBits = !SP ? '' : SP.ears(sk, { uid, back, hair: !bald && !helmet }) + (L.ears ? `<g transform="${SP.earT}">${L.ears}</g>` : '');
+    const headTop = (helmet ? '' : earBits) + (L.head || '') + helmetSvg + (helmet ? earBits : ''); // what sits on the head, over the hair
+    const tail = SP && SP.tail && !only ? SP.tail(R, sk) : null;
+    const tailSvg = !tail ? '' : !rig ? tail.svg :
+      `<g transform="translate(${n(tail.x)} ${n(tail.y)})"><g data-part="tail"><g>` +
+      (DU.motion && DU.motion.reduced() ? '' : '<animateTransform attributeName="transform" type="rotate" values="-3;5;-3" dur="1.9s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines=".45 0 .55 1;.45 0 .55 1"/>') +
+      `<g transform="translate(${n(-tail.x)} ${n(-tail.y)})">${tail.svg}</g></g></g></g>`;
     if (only) {
       const bits = [L.back, L.socks, bodyLayer, L.sleeves, L.wrist, L.held, L.over, head((L.headBack || '') + (L.head || '')), L.front].filter(Boolean).join('');
       return `<g stroke-linejoin="round" stroke-linecap="round" fill="none"><defs>${defs.join('')}</defs>${bits}</g>`;
@@ -150,7 +163,7 @@
     const mk = state.makeup || {};
     const eyes = state.eyes || {};
     const face = opts.noHead ? '' :
-      DU.body.head(sk, state.face) +
+      headBase +
       DU.drawMakeupUnder(mk, eyes.shape, uid, sk) +
       DU.drawEyes(eyes.shape, eyes.color || '#7a4a2b', uid) +
       DU.drawMouth(state.mouth, mk.lips) +
@@ -159,10 +172,10 @@
     if (rig) {
       const eyeColor = eyes.color || '#7a4a2b';
       const rface =
-        DU.body.head(sk, state.face) + DU.drawMakeupUnder(mk, eyes.shape, uid, sk) +
+        headBase + DU.drawMakeupUnder(mk, eyes.shape, uid, sk) +
         pivot(0, 8, 'eyes', DU.drawEyes(eyes.shape, eyeColor, uid)) +
         `<g data-part="mouth">${DU.drawMouth(state.mouth, mk.lips)}</g>` + DU.drawMakeupOver(mk);
-      const headInner = `<g transform="${headT}">${(L.headBack || '') + rface + hairFront + hairTop}<g data-part="brows">${DU.drawBrows(state.brows, browColor)}</g>${L.head || ''}${helmetSvg}</g>`;
+      const headInner = `<g transform="${headT}">${(L.headBack || '') + rface + hairFront + hairTop}<g data-part="brows">${DU.drawBrows(state.brows, browColor)}</g>${headTop}</g>`;
       const nx = R.cx, ny = R.neckY + 6;
       /* opts.heldTag: the things in her hands get their own <g data-held="l|r"> so they can be placed apart from the arm */
       const held = (side, svg) => (opts.heldTag && svg ? `<g data-held="${side}">${svg}</g>` : svg);
@@ -189,15 +202,15 @@
       const headG = (inner) => pivot(nx, ny, 'head', `<g data-part="headbob"><g transform="${headT}">${inner}</g></g>`);
       const partsB = !back ? '' :
         (opts.noHead ? '' : pivot(nx, ny, 'hairback', head(hairFront))) +
-        `<g data-part="body">${DU.body.lower(R, sk) + (L.socks || '') + bodyLayer}</g>` +
+        `<g data-part="body">${DU.body.lower(R, sk.under ? Object.assign({}, sk, { under: sk.underBack || null }) : sk) + (L.socks || '') + bodyLayer}</g>` +
         arm(-1) + arm(1) + (L.held || '') +
-        `<g data-part="back">${L.back || ''}</g>` +
+        `<g data-part="back">${L.back || ''}</g>` + tailSvg +
         (opts.noHead ? '' :
-          headG((L.headBack || '') + DU.body.head(sk, state.face) + DU.drawHairCap(HP) + (L.ears || '')) +
+          headG((L.headBack || '') + (SP ? SP.headBack(sk, { uid }) : DU.body.head(sk, state.face)) + (bald ? '' : DU.drawHairCap(HP)) + (SP ? '' : L.ears || '')) +
           pivot(nx, ny, 'hairback', `<g data-part="hairbob">${pivot(R.cx, R.headTop, 'hairsway', head(hairBack))}</g>`) +
-          headG(hairTop + (L.head || '') + helmetSvg));
+          headG(hairTop + headTop));
       const partsR = back ? `<g transform="matrix(-1 0 0 1 ${n(2 * R.cx)} 0)">${partsB}</g>` :
-        `<g data-part="back">${L.back || ''}</g>` +
+        `<g data-part="back">${L.back || ''}</g>` + tailSvg +
         (opts.noHead ? '' : pivot(nx, ny, 'hairback', `<g data-part="hairbob">${pivot(R.cx, R.headTop, 'hairsway', head(hairBack))}</g>`)) +
         `<g data-part="body">${DU.body.lower(R, sk) + (L.socks || '') + bodyLayer}</g>` +
         arm(-1) + arm(1) + (L.held || '') +
@@ -208,9 +221,9 @@
         `stroke-linejoin="round" stroke-linecap="round" fill="none"><defs>${defs.join('')}</defs>${pivot(R.cx, R.ground, 'all', partsR)}</g>`;
     }
 
-    const headSvg = opts.noHead ? '' : head((L.headBack || '') + face + hairFront + hairTop + DU.drawBrows(state.brows, browColor) + (L.head || '') + helmetSvg);
+    const headSvg = opts.noHead ? '' : head((L.headBack || '') + face + hairFront + hairTop + DU.drawBrows(state.brows, browColor) + headTop);
     const parts = [
-      L.back, opts.noHead ? '' : head(hairBack),
+      L.back, tailSvg, opts.noHead ? '' : head(hairBack),
       DU.body.lower(R, sk), L.socks, bodyLayer,
       DU.body.arms(R, sk), L.sleeves, L.wrist, L.held, DU.body.hands(R, sk), L.over,
       headSvg,
@@ -268,7 +281,8 @@
   /* where the head centre lands on the card (0…1 of the card height), for the face zoom */
   DU.headCenterY = function (state) {
     const R = DU.rig(state.body);
-    return (DU.FEET_Y + (R.headY + 6 - 950) * DU.charScale(state)) / 1000;
+    const SP = (DU.SPECIES && DU.SPECIES[state.kind]) || null; // tall ears: look a little higher
+    return (DU.FEET_Y + (R.headY + 6 - (SP ? SP.zoomUp || 0 : 0) - 950) * DU.charScale(state)) / 1000;
   };
 
   /* Small previews. They use the raw rig coordinates of the default body (no card scaling). */
@@ -283,7 +297,10 @@
     const uid = DU.uid('t');
     const s = Object.assign({}, state, { body: { h: 0, m: 0 } });
     const inner = DU.renderCharacter(s, { uid, noHead: BODY_SLOTS.includes(kind) });
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${DU.THUMB_BOX[kind] || DU.THUMB_BOX.girl}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+    let box = DU.THUMB_BOX[kind] || DU.THUMB_BOX.girl;
+    const SP = (DU.SPECIES && DU.SPECIES[state.kind]) || null;
+    if (SP && kind === 'earrings') { const b = box.split(' ').map(Number); b[1] -= SP.earUp; box = b.join(' '); } // her earrings are up on her own ears
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
   };
   DU.renderBgThumb = function (bg) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 1000" preserveAspectRatio="xMidYMid slice">${bg.draw(DU.uid('b'))}</svg>`;

@@ -4,7 +4,7 @@
 
      DU.rideRider.make(state, opts) → Promise<rider>       opts: { bikeColor, helmetColor }
      DU.rideRider.doll(state, opts) → Promise<Object3D>    a standing paper doll; opts: { h, pose, res }
-     DU.rideRider.friends(n, seed)  → [state, …]           random dressed girls
+     DU.rideRider.friends(n, seed, notKind) → [state, …]   random dressed girls (and one special character)
 
      rider = { group, height, update(dt, { speed, steer, braking }), pose('ride'|'wave'|'cheer'), bell(), dispose() }
      rider.group: origin on the ground under the middle of the bike, forward = +Z, metres.
@@ -585,7 +585,7 @@
   };
 
   /* ---------- random friends ---------- */
-  RR.friends = function (n, seed = 1) {
+  RR.friends = function (n, seed = 1, notKind) {
     const rnd = DU.rideKit ? DU.rideKit.rng(seed * 7919 + 13) : Math.random;
     const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
     const free = (slot) => DU.items.filter((it) => it.slot === slot && !it.price);
@@ -612,6 +612,14 @@
       if (rnd() < 0.2) w.glasses = wearOf(pick(free('glasses')));
       s.wear = w;
       out.push(s);
+    }
+    // one of the friends is a special character (a wolf, a capybara…), not the same kind as the rider
+    const sp = (DU.SPECIALS || []).filter((x) => x.kind && x.kind !== notKind);
+    if (sp.length && n >= 3) {
+      const g = sp[Math.floor(rnd() * sp.length)], s = out[2]; // the third friend stands in front, where the camera sees her
+      Object.assign(s, { base: g.id, kind: g.kind, skin: g.skin, eyes: Object.assign({}, g.eyes), brows: g.brows, mouth: pick(['smile', 'big', g.mouth]), hair: Object.assign({}, g.hair) });
+      s.makeup = { blush: null, shadow: null, lips: null, sparkle: null };
+      if (g.wear && !s.wear.hat) s.wear = Object.assign({}, s.wear, g.wear);
     }
     return out;
   };

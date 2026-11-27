@@ -388,7 +388,7 @@
       const RR = DU.rideRider;
       if (RR && RR.friends && RR.doll) {
         let list = [];
-        try { list = RR.friends(5, 11); } catch (e) { console.error(e); }
+        try { list = RR.friends(5, 11, state.kind); } catch (e) { console.error(e); }
         list.forEach((fs, i) => {
           const lat = [-2.7, -1.75, 1.8, 2.8, -3.6][i], s = L + [-2.7, -1.0, -0.8, -2.4, -4.2][i];
           Promise.resolve(RR.doll(fs, { pose: i % 2 ? 'wave' : 'cheer', h: 1.2 + (i % 3) * 0.06 })).then((d) => {
