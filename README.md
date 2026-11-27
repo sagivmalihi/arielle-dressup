@@ -32,7 +32,8 @@ lines up on every height and build.
 | `js/fabric.js` | "my own fabric": pattern fills (`pat:kind:bg:fg:size`), chest stickers, the studio |
 | `js/album.js` | the sticker album, the secret combinations, and the living effects on backgrounds |
 | `js/store.js`, `js/sound.js`, `js/app.js` | saving, sound effects, screens |
-| `js/ride*.js`, `lib/three.min.js` | the 3D bike ride to school (see below) |
+| `js/bike.js` | her bikes: what a bike is made of, the choices and prices of the workshop, which bikes she has, the sound of her bell |
+| `js/ride*.js`, `lib/three.min.js` | the 3D bike ride to school and the bike workshop (see below) |
 
 To add an item, add an object to one of the `DU.addItems([...])` lists: `id`, `slot`,
 Hebrew `name`, theme `tags`, `price` (0 = free, more = shop), `color`, and a `draw(R, P, ctx)`
@@ -45,14 +46,23 @@ dressed rides her bike to school through real streets in 3D. It is the only part
 library: [three.js](https://threejs.org) r149 (MIT), bundled in `lib/`. All of it is fetched only
 when a ride starts, so the dress-up game loads as fast as before.
 
+She sets her own speed (▲ and ▼ on the screen, or the arrow keys), from a slow roll up to about
+115 km/h; the bike slows by itself for sharp corners and red lights.
+
+The tag on the bike in her room opens the **bike workshop**: frame shape, paint, wheels, basket,
+streamers, flag, the trail she leaves at speed, the sound of the bell and her helmet. She can keep
+up to five bikes. Some parts cost stars; she can try them on the bike before buying.
+
 | File | What it holds |
 |---|---|
 | `js/ride-data.js` | the streets, buildings, parks and the route, baked from OpenStreetMap (metres; x east, z south) |
 | `js/ride-kit.js` | shared 3D helpers: palette, painted primitives merged into one mesh, signs with text, the route maths |
 | `js/ride-world.js` | builds the city from the data: roads, buildings, trees, signs, sky, light |
-| `js/ride-rider.js` | the girl as a paper doll on a 3D bike (a back view of her is drawn by `render.js`) |
+| `js/ride-bike.js` | her bike in 3D, built from her design: frames, paints, wheels, basket, streamers, flag; and what she leaves behind her on the road |
+| `js/ride-rider.js` | the girl as a paper doll on that bike (a back view of her is drawn by `render.js`) |
 | `js/ride-models.js` | stars, cones, pigeons, cats, cars, people, traffic lights |
-| `js/ride.js` | the game: steering, hop and bell, what lies on the road, the red lights, the arrival |
+| `js/ride.js` | the game: steering, her speed (▲ ▼ or the arrow keys, up to about 115 km/h), hop and bell, what lies on the road, the red lights, the arrival |
+| `js/ride-garage.js`, `css/garage.css` | the bike workshop: she designs her bikes on a turning stand in 3D, tries parts on, buys them with stars |
 
 Map data © OpenStreetMap contributors, available under the Open Database License.
 

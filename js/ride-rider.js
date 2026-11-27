@@ -1,9 +1,10 @@
-/* ride-rider.js — the girl on her bike for the 3D ride (needs THREE, ride-kit.js, render.js, motion.js).
+/* ride-rider.js — the girl on her bike for the 3D ride (needs THREE, ride-kit.js, ride-bike.js, render.js, motion.js).
    She stays a flat paper doll fixed to a real 3D bike: one plane shows her BACK (what the chase camera
    sees), one shows her FRONT (intro / arrival). Each is single-sided, so the right one shows from any angle.
+   The bike itself is built in ride-bike.js from her bike spec (bike.js).
 
-     DU.rideRider.make(state, opts) → Promise<rider>       opts: { bikeColor, helmetColor }
-     DU.rideRider.doll(state, opts) → Promise<Object3D>    a standing paper doll; opts: { h, pose, res }
+     DU.rideRider.make(state, opts) → Promise<rider>       opts: { bike: a bike spec }
+     DU.rideRider.doll(state, opts) → Promise<Object3D>    a standing paper doll; opts: { h, pose, res, helmet }
      DU.rideRider.friends(n, seed, notKind) → [state, …]   random dressed girls (and one special character)
 
      rider = { group, height, update(dt, { speed, steer, braking }), pose('ride'|'wave'|'cheer'), bell(), dispose() }
@@ -21,12 +22,9 @@
   const UNIT = 1.3 / 696; // metres per body unit: a girl of normal height is about 1.3 m tall
   const PETS = ['sd_cat', 'sd_dog', 'sd_bunny', 'sd_fox', 'sd_hamster', 'sd_penguin', 'sd_owl', 'sd_unicorn', 'sd_dragon', 'sd_teddy'];
 
-  /* the bike (metres; +Z forward) */
-  const WR = 0.235, TYRE = 0.03, REAR_Z = -0.44, FRONT_Z = 0.47;
-  const BB = { y: 0.205, z: -0.04 }, CRANK = 0.075, PEDX = 0.088;
-  const FOOT_Y = BB.y - CRANK + 0.012; // where her soles are when a pedal is at the bottom
+  /* the bike (metres; +Z forward): where the pedals and the grips are on every bike */
+  const { CRANK, PEDX, FOOT_Y, GRIP } = DU.rideBike.DIM;
   const DZ = -0.04; // the plane the doll lives in
-  const GRIP = { x: 0.215, z: 0.09 };
   const CHASE = (RR.CHASE = { y: 3.2, z: -7 }); // where the game's camera sits, relative to her: the hands are lined up with the grips for this view (change before make())
 
   const rad = (d) => (d * Math.PI) / 180, deg = (r) => (r * 180) / Math.PI;
@@ -200,67 +198,23 @@
     return m;
   }
 
-  /* ---------- 3D bits ---------- */
-  function tube(a, b, r, color, seg = 6) {
-    const K = DU.rideKit, d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length();
-    const geo = new THREE.CylinderGeometry(r, r, len, seg, 1).toNonIndexed();
-    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
-    geo.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
-    return K.paint(geo, color);
-  }
-  const BEADS = ['#ff8fc0', '#ffd54d', '#7de3e0', '#b99cff', '#ffffff', '#ff9d4d'];
-  function wheelParts(rim) {
-    const K = DU.rideKit, H = Math.PI / 2, parts = [];
-    parts.push(K.g(new THREE.TorusGeometry(WR - TYRE, TYRE, 8, 22), '#fff6e6', 0, 0, 0, 0, H, 0));
-    parts.push(K.g(new THREE.TorusGeometry(WR - TYRE * 2 + 0.006, 0.011, 6, 22), rim, 0, 0, 0, 0, H, 0));
-    parts.push(K.g(new THREE.CylinderGeometry(0.024, 0.024, 0.075, 8), '#eef1f5', 0, 0, 0, 0, 0, H));
-    const sl = (WR - TYRE * 2) * 2;
-    for (let i = 0; i < 4; i++) parts.push(K.g(new THREE.BoxGeometry(0.006, sl, 0.006), '#dfe5ec', 0, 0, 0, (i * Math.PI) / 4, 0, 0));
-    for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4 + 0.2, r = 0.085 + (i % 3) * 0.022;
-      parts.push(K.g(new THREE.SphereGeometry(0.017, 6, 5), BEADS[i % BEADS.length], i % 2 ? 0.012 : -0.012, Math.cos(a) * r, Math.sin(a) * r));
-    }
-    return parts;
-  }
-  function mudguard(z, start, arc, color) {
-    const K = DU.rideKit;
-    return K.g(new THREE.TorusGeometry(WR + 0.022, 0.011, 4, 12, arc), color, 0, WR, z, start, Math.PI / 2, 0, 1, 1, 3.2);
-  }
-  function backpackParts() {
-    const K = DU.rideKit, P = K.PAL, parts = [];
-    parts.push(K.g(new THREE.BoxGeometry(0.2, 0.22, 0.11), P.purple, 0, 0.11, 0));
-    parts.push(K.g(new THREE.CylinderGeometry(0.1, 0.1, 0.11, 10, 1, false, 0, Math.PI), P.purple, 0, 0.22, 0, 0, Math.PI / 2, Math.PI / 2));
-    parts.push(K.g(new THREE.BoxGeometry(0.15, 0.1, 0.03), P.pink, 0, 0.08, -0.065));
-    parts.push(K.g(new THREE.BoxGeometry(0.17, 0.02, 0.02), P.yellow, 0, 0.19, -0.06));
-    parts.push(K.g(new THREE.SphereGeometry(0.022, 8, 6), P.yellow, 0, 0.1, -0.085));
-    parts.push(K.g(new THREE.TorusGeometry(0.035, 0.008, 5, 10, Math.PI), P.pink, 0, 0.31, 0));
-    return parts;
-  }
-
-  function ballParts() {
-    const K = DU.rideKit, P = K.PAL, parts = [], r = 0.115, cols = [P.red, P.white, P.blue, P.yellow, P.green, P.white];
-    for (let i = 0; i < 6; i++) parts.push(K.g(new THREE.SphereGeometry(r, 5, 10, (i * Math.PI) / 3, Math.PI / 3), cols[i], 0, r + 0.03, 0, 0.5, 0, 0.3));
-    return parts;
-  }
-
   /* ---------- the rider ---------- */
   RR.make = async function (state, opts = {}) {
-    const T = THREE, K = DU.rideKit, P = K.PAL;
+    const T = THREE, K = DU.rideKit, RB = DU.rideBike;
     const R = DU.rig(state.body);
-    const bikeColor = opts.bikeColor || P.pink, helmetColor = opts.helmetColor || P.purple;
+    const spec = DU.bike.norm(opts.bike), helmet = DU.bike.helmetOf(spec);
     const own = []; // what dispose() must free
 
     const Y = (y) => FOOT_Y + (950 - y) * UNIT;
-    const saddleY = Y(R.crotchY) - 0.006;
-    const gripY = clamp(Y(R.sY + 14) - 0.2, 0.74, 0.97);
-    const target = handTarget(gripY);
+    const fit = RB.fit(state.body), saddleY = fit.saddleY;
+    const target = handTarget(fit.gripY);
 
     // the riding doll: the same girl without what stands next to her (a pet rides in the crate instead)
     const riding = Object.assign({}, state, { wear: Object.assign({}, state.wear) });
     delete riding.wear.side;
     const [backF, frontF] = await Promise.all([
-      buildFace(riding, R, true, helmetColor, target, ['ride', 'wave', 'cheer']),
-      buildFace(riding, R, false, helmetColor, target, ['ride', 'wave', 'cheer']),
+      buildFace(riding, R, true, helmet, target, ['ride', 'wave', 'cheer']),
+      buildFace(riding, R, false, helmet, target, ['ride', 'wave', 'cheer']),
     ]);
     const pet = await petSprite(state, own);
 
@@ -269,162 +223,20 @@
     shadow.scale.set(0.75, 1.9, 1);
     group.add(shadow);
     own.push(shadow.geometry, shadow.material);
-    const tilt = new T.Group();
+
+    /* --- her bike; in the crate her pet, or the school bag (a ball, when the bag is already on her back) --- */
+    const wornBag = state.wear && state.wear.bag && ['bag_backpack', 'bag_randoseru', 'bag_guitar'].includes(state.wear.bag.id);
+    const bike = RB.build(spec, fit, { cargo: pet ? false : wornBag ? 'ball' : 'bag' });
+    const tilt = bike.tilt;
     group.add(tilt);
-
-    /* --- frame (does not move) --- */
-    const white = '#ffffff', silver = '#e3e8ee', straw = '#f6dca6', strawD = '#dcb878', saddleC = '#8d76d8';
-    const HB = [0, 0.46, 0.32], HT = [0, gripY - 0.05, 0.255], seatTop = [0, saddleY - 0.04, -0.13];
-    const fr = [];
-    fr.push(tube([0, BB.y, BB.z], seatTop, 0.021, bikeColor));
-    fr.push(tube([0, BB.y, BB.z], HB, 0.024, bikeColor));
-    fr.push(tube([0, BB.y + 0.16, BB.z - 0.045], [0, HB[1] + 0.05, HB[2] - 0.012], 0.019, bikeColor));
-    fr.push(tube(HB, HT, 0.024, bikeColor));
-    [-1, 1].forEach((s) => {
-      fr.push(tube([s * 0.03, BB.y, BB.z], [s * 0.045, WR, REAR_Z], 0.013, bikeColor));
-      fr.push(tube([s * 0.045, WR, REAR_Z], [s * 0.012, BB.y + 0.3, BB.z - 0.085], 0.012, bikeColor));
-      fr.push(tube([s * 0.05, WR, REAR_Z], [s * 0.07, 0.505, REAR_Z - 0.06], 0.007, silver, 5)); // rack stays
-    });
-    fr.push(K.g(new T.CylinderGeometry(0.03, 0.03, 0.07, 8), silver, 0, BB.y, BB.z, 0, 0, Math.PI / 2));
-    // saddle
-    fr.push(K.g(new T.SphereGeometry(0.07, 10, 6), saddleC, 0, saddleY - 0.022, -0.15, 0, 0, 0, 0.95, 0.34, 1.2));
-    fr.push(K.g(new T.SphereGeometry(0.05, 8, 6), saddleC, 0, saddleY - 0.022, -0.07, 0, 0, 0, 0.75, 0.34, 1.1));
-        // mudguards
-    fr.push(mudguard(REAR_Z, -0.55, 2.55, white));
-    // rack + crate
-    const rackY = 0.508, cz = -0.525, cw = 0.25, cl = 0.2, chh = 0.105;
-    fr.push(K.g(new T.BoxGeometry(0.13, 0.012, 0.3), silver, 0, rackY, cz + 0.05));
-    fr.push(K.g(new T.BoxGeometry(cw, 0.012, cl), straw, 0, rackY + 0.012, cz));
-    [-1, 1].forEach((s) => {
-      for (let i = 0; i < 2; i++) {
-        fr.push(K.g(new T.BoxGeometry(0.012, 0.038, cl), i ? straw : strawD, (s * cw) / 2, rackY + 0.037 + i * 0.048, cz));
-        fr.push(K.g(new T.BoxGeometry(cw, 0.038, 0.012), i ? straw : strawD, 0, rackY + 0.037 + i * 0.048, cz + (s * cl) / 2));
-      }
-      [-1, 1].forEach((e) => fr.push(K.g(new T.BoxGeometry(0.018, chh, 0.018), strawD, (s * cw) / 2, rackY + 0.012 + chh / 2, cz + (e * cl) / 2)));
-    });
-    fr.push(K.g(new T.SphereGeometry(0.022, 8, 6), '#ff5d73', 0, rackY - 0.03, cz - cl / 2 - 0.035, 0, 0, 0, 1.5, 1, 0.5)); // rear reflector
-    const frame = K.mesh(fr);
-    tilt.add(frame);
-    own.push(frame.geometry);
-
-    /* --- wheels --- */
-    const rear = K.mesh(wheelParts(P.teal));
-    rear.position.set(0, WR, REAR_Z);
-    tilt.add(rear);
-    own.push(rear.geometry);
-
-    /* --- steering: fork, bar, basket, front wheel --- */
-    const SZ = 0.31;
-    const steer = new T.Group();
-    steer.position.set(0, 0, SZ);
-    tilt.add(steer);
-    const st = [];
-    [-1, 1].forEach((s) => {
-      st.push(tube([s * 0.012, HB[1], HB[2] - SZ], [s * 0.045, WR, FRONT_Z - SZ], 0.013, bikeColor));
-      st.push(tube([0, gripY, 0.25 - SZ], [s * 0.12, gripY + 0.022, 0.235 - SZ], 0.014, silver));
-      st.push(tube([s * 0.12, gripY + 0.022, 0.235 - SZ], [s * GRIP.x, gripY, 0.145 - SZ], 0.014, silver));
-      st.push(tube([s * GRIP.x, gripY, 0.15 - SZ], [s * GRIP.x, gripY - 0.004, 0.035 - SZ], 0.021, P.teal, 8));
-      st.push(K.g(new T.SphereGeometry(0.024, 8, 6), P.yellow, s * GRIP.x, gripY - 0.004, 0.032 - SZ));
-    });
-    st.push(tube(HT, [0, gripY, 0.25], 0.016, silver).translate(0, 0, -SZ));
-    // basket with flowers
-    const bkY = gripY - 0.15, bkZ = 0.44 - SZ;
-    st.push(K.g(new T.CylinderGeometry(0.135, 0.105, 0.15, 10), straw, 0, bkY, bkZ, 0, 0, 0, 1, 1, 0.72));
-    st.push(K.g(new T.CylinderGeometry(0.139, 0.139, 0.022, 10), strawD, 0, bkY + 0.07, bkZ, 0, 0, 0, 1, 1, 0.72));
-    st.push(K.g(new T.CylinderGeometry(0.122, 0.122, 0.024, 10), '#b98f55', 0, bkY + 0.071, bkZ, 0, 0, 0, 1, 1, 0.72));
-    st.push(tube([0, gripY - 0.05, 0.27 - SZ], [0, bkY + 0.02, bkZ - 0.08], 0.01, silver, 5));
-    const fl = [[-0.07, 0.03, P.pink], [0.06, 0.02, P.yellow], [0, 0.045, white], [0.09, -0.03, P.purple], [-0.1, -0.02, P.orange]];
-    const petal = new T.SphereGeometry(0.017, 6, 4), heart = new T.SphereGeometry(0.012, 6, 4);
-    const flower = (x, y, z, c, tiltX, r = 0.021) => {
-      const f = [K.g(heart, c === P.yellow ? P.orange : P.yellow, 0, 0.006, 0)];
-      for (let i = 0; i < 5; i++) f.push(K.g(petal, c, Math.cos(i * 1.2566) * r, 0, Math.sin(i * 1.2566) * r, 0, 0, 0, 1, 0.55, 1));
-      const m = new T.Matrix4().makeRotationX(tiltX).setPosition(x, y, z);
-      f.forEach((g) => st.push(g.applyMatrix4(m)));
-    };
-    fl.forEach(([x, z, c], i) => {
-      st.push(tube([x * 0.6, bkY + 0.06, bkZ + z * 0.6], [x, bkY + 0.115 + (i % 2) * 0.02, bkZ + z], 0.004, P.green, 4));
-      flower(x, bkY + 0.118 + (i % 2) * 0.02, bkZ + z, c, 0.25 - z * 4);
-    });
-    [[-0.055, P.pink], [0.055, white], [0, P.yellow]].forEach(([x, c]) => flower(x, bkY + 0.012, bkZ + 0.1 - Math.abs(x) * 0.12, c, Math.PI / 2, 0.018));
-    st.push(mudguard(FRONT_Z - SZ, 0.75, 2.0, white));
-    const steerMesh = K.mesh(st);
-    steer.add(steerMesh);
-    own.push(steerMesh.geometry);
-    const front = K.mesh(wheelParts(P.teal));
-    front.position.set(0, WR, FRONT_Z - SZ);
-    steer.add(front);
-    own.push(front.geometry);
-    // bell
-    const bellM = K.mesh([K.g(new T.SphereGeometry(0.03, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#f4f6f9', 0, 0, 0), K.g(new T.SphereGeometry(0.008, 6, 4), P.pink, 0, 0.031, 0)]);
-    bellM.position.set(-0.115, gripY + 0.034, 0.238 - SZ);
-    steer.add(bellM);
-    own.push(bellM.geometry);
-    const ringMat = new T.MeshBasicMaterial({ color: '#fff6c4', transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide, fog: false });
-    const ringGeo = new T.TorusGeometry(0.07, 0.008, 5, 18);
-    const rings = [0, 1].map(() => { const m = new T.Mesh(ringGeo, ringMat.clone()); m.visible = false; bellM.add(m); own.push(m.material); return m; });
-    own.push(ringMat, ringGeo);
-    // streamers on the grips
-    const SC = [P.pink, P.yellow, P.teal, white, P.purple];
-    const streamers = [-1, 1].map((s) => {
-      const piv = new T.Group();
-      piv.position.set(s * GRIP.x, gripY - 0.004, 0.03 - SZ);
-      const strips = SC.map((c, i) => {
-        const g = new T.PlaneGeometry(0.014, 0.15 + (i % 3) * 0.025).toNonIndexed();
-        g.translate(0, -(0.075 + (i % 3) * 0.0125), 0);
-        g.rotateY(i * 1.3);
-        g.rotateX(((i - 2) * 0.16));
-        g.rotateZ(((i % 2 ? 1 : -1) * 0.12) + s * 0.1);
-        return K.paint(g, c);
-      });
-      const m = new T.Mesh(K.merge(strips), K.vmat({ side: T.DoubleSide }));
-      piv.add(m);
-      steer.add(piv);
-      own.push(m.geometry);
-      return piv;
-    });
-
-    /* --- cranks and pedals --- */
-    const crank = K.mesh([
-      K.g(new T.CylinderGeometry(0.058, 0.058, 0.008, 12), P.yellow, 0.04, 0, 0, 0, 0, Math.PI / 2),
-      tube([0.05, 0, 0], [0.05, 0, -CRANK], 0.009, silver, 5), tube([-0.05, 0, 0], [-0.05, 0, CRANK], 0.009, silver, 5),
-    ]);
-    crank.position.set(0, BB.y, BB.z);
-    tilt.add(crank);
-    own.push(crank.geometry);
-    const pedalGeo = K.merge([K.g(new T.BoxGeometry(0.075, 0.018, 0.06), white, 0, 0, 0), K.g(new T.BoxGeometry(0.078, 0.008, 0.02), P.yellow, 0, 0, 0)]);
-    own.push(pedalGeo);
-    const pedals = [-1, 1].map((s) => { const m = new T.Mesh(pedalGeo, K.vmat()); m.userData.s = s; tilt.add(m); return m; });
-
-    /* --- in the crate: her pet, or the school bag --- */
     let petPivot = null;
     if (pet) {
       petPivot = new T.Group();
-      petPivot.position.set(0, rackY + 0.035, cz + 0.01);
+      petPivot.position.set(0, bike.crate.y + 0.035, bike.crate.z + 0.01);
       pet.rotation.y = Math.PI; // it looks back at the camera
       petPivot.add(pet);
       tilt.add(petPivot);
-    } else {
-      const wornBag = state.wear && state.wear.bag && ['bag_backpack', 'bag_randoseru', 'bag_guitar'].includes(state.wear.bag.id);
-      const bag = K.mesh(wornBag ? ballParts() : backpackParts()); // her school bag — or a ball, when the bag is already on her back
-      bag.scale.setScalar(0.8);
-      bag.position.set(0, rackY + 0.02, cz);
-      tilt.add(bag);
-      own.push(bag.geometry);
     }
-
-    /* --- the safety flag on its springy pole --- */
-    const flag = new T.Group();
-    flag.position.set(cw / 2, rackY, cz - cl / 2);
-    const poleH = 0.98, FLAG_TILT = -0.13; // the pole leans out so it does not cross her head
-    const pole = K.mesh([tube([0, 0, 0], [0, poleH, 0], 0.007, white, 5), K.g(new T.SphereGeometry(0.016, 6, 5), P.yellow, 0, poleH + 0.01, 0)]);
-    const pg = new T.BufferGeometry();
-    pg.setAttribute('position', new T.BufferAttribute(new Float32Array([0, 0.07, 0, 0, -0.07, 0, 0, 0, -0.23]), 3));
-    pg.computeVertexNormals();
-    const pennant = new T.Mesh(pg, new T.MeshBasicMaterial({ color: P.orange, side: T.DoubleSide }));
-    pennant.position.y = poleH - 0.09;
-    flag.add(pole, pennant);
-    tilt.add(flag);
-    own.push(pole.geometry, pg, pennant.material);
 
     /* --- the doll: two faces --- */
     const doll = new T.Group();
@@ -469,13 +281,10 @@
     const amp = Math.min(CRANK, legLen * 0.22); // how far the feet travel (short when only her shoes show under a gown)
     const shear = (PEDX - 24 * UNIT) * clamp(legLen / 0.3, 0, 1);
 
-    /* --- motion --- */
-    let phase = 0.6, lean = 0, bar = 0, wheelA = 0, time = 0, bellT = 0, flagA = 0, flagV = 0, pose = 'ride', lastSteer = 0, sp = 0;
+    /* --- motion: the bike moves itself; her feet follow the pedals --- */
+    let pose = 'ride';
     function placeLegs() {
-      pedals.forEach((p) => {
-        const a = phase + (p.userData.s > 0 ? 0 : Math.PI);
-        p.position.set(p.userData.s * PEDX, BB.y + CRANK * Math.sin(a), BB.z - CRANK * Math.cos(a));
-      });
+      const phase = bike.phase;
       faces.forEach((f) => f.legs.forEach((l) => {
         const a = phase + (l.world > 0 ? 0 : Math.PI);
         const footY = FOOT_Y + amp * (1 + Math.sin(a));
@@ -487,72 +296,32 @@
       }));
     }
     function update(dt, s = {}) {
-      const speed = Math.max(0, s.speed || 0), steerIn = clamp(s.steer || 0, -1, 1);
-      time += dt;
-      sp += (speed - sp) * Math.min(1, dt * 6);
-      const go = clamp(sp / 5, 0, 1);
-      if (!s.braking) phase += speed * dt * 1.25;
-      wheelA += (speed * dt) / WR;
-      rear.rotation.x = wheelA;
-      front.rotation.x = wheelA;
-      crank.rotation.x = phase;
+      bike.update(dt, s);
+      const phase = bike.phase, go = bike.go, time = bike.time;
       placeLegs();
-      // lean into the turn, turn the bar
-      lean += (steerIn * 0.2 * (0.35 + 0.65 * go) - lean) * Math.min(1, dt * 7);
-      bar += (-steerIn * 0.24 - bar) * Math.min(1, dt * 9);
-      tilt.rotation.z = lean;
-      steer.rotation.y = bar;
-      tilt.position.y = Math.sin(phase * 2) * 0.004 * go;
       const sway = Math.sin(phase) * 0.022 * go;
       faces.forEach((f, i) => (f.up.rotation.z = i ? sway : -sway));
-      // streamers trail behind with speed and flutter
-      streamers.forEach((piv, i) => {
-        piv.rotation.x = 0.15 + go * 1.05 + Math.sin(time * 17 + i * 2) * 0.12 * (0.2 + go);
-        piv.rotation.z = Math.sin(time * 11 + i) * 0.1 * (0.2 + go) + lean * 0.5;
-      });
-      // the flag: a spring that answers to turning, bends back with speed
-      const push = (steerIn - lastSteer) / Math.max(dt, 0.001);
-      lastSteer = steerIn;
-      flagV += (-flagA * 60 - flagV * 5 + push * 0.5 - lean * 20) * dt;
-      flagA = clamp(flagA + flagV * dt, -0.5, 0.5);
-      flag.rotation.z = FLAG_TILT + flagA;
-      flag.rotation.x = -go * 0.16 + Math.sin(time * 9) * 0.02 * go;
-      pennant.rotation.y = Math.sin(time * 14) * 0.5 * (0.15 + go);
-      pennant.rotation.z = -go * 0.1;
       if (petPivot) {
-        petPivot.position.y = rackY + 0.035 + Math.abs(Math.sin(phase)) * 0.016 * go + Math.abs(Math.sin(time * 3.1)) * 0.004;
+        petPivot.position.y = bike.crate.y + 0.035 + Math.abs(Math.sin(phase)) * 0.016 * go + Math.abs(Math.sin(time * 3.1)) * 0.004;
         petPivot.rotation.z = Math.sin(phase + 0.6) * 0.07 * go + Math.sin(time * 2.3) * 0.03;
       }
-      shadow.scale.set(0.75 + Math.abs(lean) * 0.5, 1.9, 1);
-      // the bell
-      if (bellT > 0) {
-        bellT = Math.max(0, bellT - dt);
-        const k = 1 - bellT / 0.55;
-        bellM.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.45);
-        bellM.rotation.z = Math.sin(k * 40) * 0.25 * (1 - k);
-        rings.forEach((r, i) => {
-          const kk = clamp(k * 1.3 - i * 0.25, 0, 1);
-          r.visible = kk > 0 && kk < 1;
-          r.scale.setScalar(0.4 + kk * 1.3);
-          r.position.y = 0.05 + kk * 0.13;
-          r.rotation.x = -0.35;
-          r.material.opacity = (1 - kk) * 0.95;
-        });
-      } else if (rings[0].visible) rings.forEach((r) => (r.visible = false));
+      shadow.scale.set(0.75 + Math.abs(bike.lean) * 0.5, 1.9, 1);
     }
     placeLegs();
 
     return {
       group,
+      bike,
       height: Y(R.headY - 147 * R.hs),
       update,
       pose(name) {
         pose = name === 'wave' || name === 'cheer' ? name : 'ride';
         faces.forEach((f) => { f.mat.map = f.tex[pose] || f.tex.ride; f.mat.needsUpdate = true; });
       },
-      bell() { bellT = 0.55; },
+      bell() { bike.bell(); },
       dispose() {
         if (group.parent) group.parent.remove(group);
+        bike.dispose();
         own.forEach((o) => o && o.dispose && o.dispose());
       },
     };
@@ -562,7 +331,7 @@
   RR.doll = async function (state, opts = {}) {
     const K = DU.rideKit, R = DU.rig(state.body);
     const vb = [42, 70, 666, 896], h = opts.res || 640, w = Math.round((h * vb[2]) / vb[3]);
-    const root = svgEl(DU.renderCharacter(state, { rig: true, heldTag: true }), vb, w, h);
+    const root = svgEl(DU.renderCharacter(state, { rig: true, heldTag: true, helmet: opts.helmet || null }), vb, w, h);
     R_OF.set(root, R);
     const pose = opts.pose && opts.pose !== 'rest' ? opts.pose : null;
     if (pose) {

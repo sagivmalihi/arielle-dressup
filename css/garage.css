@@ -1,0 +1,82 @@
+/* garage.css — the bike workshop (ride-garage.js) and its little things elsewhere in the game. */
+.garage {
+  height: 100%; display: grid; gap: var(--gap); padding: var(--gap); max-width: 1500px; margin: 0 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  grid-template-rows: var(--top-h) minmax(0, 1fr) var(--hair-h);
+  grid-template-areas: "top top" "panel stage" "bikes bikes";
+}
+.g-title { flex: 1; min-width: 0; margin: 0; font-size: clamp(19px, 2.6vw, 27px); font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; }
+.g-title span { overflow: hidden; text-overflow: ellipsis; }
+.g-title .du-ico { font-size: 1.25em; flex: none; }
+.g-go { min-height: 48px; font-size: 21px; padding: 6px 22px; flex: none; }
+.g-wait { align-items: center; justify-content: center; }
+
+/* the stand with the bike on it */
+.g-stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; border-radius: 26px; overflow: hidden; background: #eef9ff; border: 6px solid #fff; box-shadow: 0 12px 28px rgba(120, 70, 160, .22); touch-action: none; -webkit-user-select: none; user-select: none; }
+.g-back, .g-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.g-canvas { touch-action: none; cursor: grab; }
+.g-canvas:active { cursor: grabbing; }
+.g-dice { position: absolute; top: 10px; inset-inline-start: 10px; z-index: 2; }
+.g-del { position: absolute; top: 10px; inset-inline-end: 10px; z-index: 2; }
+.g-del[hidden] { display: none; }
+.g-turn { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 999px; background: rgba(255, 255, 255, .86); color: var(--ink-soft); font-weight: 600; font-size: 15px; white-space: nowrap; transition: opacity .5s; }
+.g-turn .du-ico { font-size: 1.3em; }
+.g-turned .g-turn { opacity: 0; }
+/* a part she tries on before it is hers */
+.g-buy { position: absolute; inset-inline: 10px; bottom: 10px; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 22px; background: rgba(255, 255, 255, .95); box-shadow: 0 8px 22px rgba(60, 30, 90, .22); animation: rise .25s cubic-bezier(.3, 1.4, .5, 1); }
+.g-buy[hidden] { display: none; }
+.g-buy-name { font-weight: 700; font-size: 18px; display: inline-flex; align-items: center; gap: 6px; }
+.g-buy-miss { font-weight: 600; font-size: 16px; color: var(--ink-soft); }
+.g-buy-miss b { color: #a36b00; }
+.g-buy .btn { min-height: 46px; font-size: 19px; padding: 6px 18px; }
+.g-buy .btn .du-ico { margin-inline-end: 2px; }
+.g-buy .round-btn { width: 44px; height: 44px; flex: none; }
+
+/* the panel: pages, tiles, colours */
+.g-panel { grid-area: panel; }
+.g-tabs { gap: 4px; padding: 8px 6px 0; }
+.g-tabs .cat { font-size: clamp(11px, 1.25vw, 14.5px); padding-inline: 0; }
+.g-tabs .cat .ico { font-size: clamp(22px, 2.6vw, 28px); display: flex; justify-content: center; }
+.g-panel .grid-scroll { padding-top: 12px; }
+.g-tile { flex-direction: column; }
+.g-th { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.g-th:not([src]) { visibility: hidden; }
+.g-tile > svg { width: 100%; height: 100%; }
+.g-ico { font-size: clamp(40px, 5.4vw, 58px); line-height: 1; display: flex; }
+.g-tile.locked .g-th, .g-tile.locked .g-ico { opacity: .85; }
+.g-tile.trying { border-color: var(--sun); background: #fffbe8; box-shadow: 0 0 0 3px rgba(255, 210, 77, .4); }
+.g-price { position: absolute; top: 4px; inset-inline-start: 4px; display: inline-flex; align-items: center; gap: 2px; padding: 1px 7px 1px 6px; border-radius: 999px; background: rgba(75, 53, 100, .86); color: #fff; font-size: 13.5px; font-weight: 700; direction: ltr; }
+.g-price .du-ico { font-size: 1.05em; }
+.g-paint i { position: absolute; inset: 14% 14% 30%; border-radius: 16px; box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .8), 0 2px 6px rgba(60, 30, 90, .18); }
+.g-note { padding: 14px 10px 4px; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.g-note .du-ico { font-size: 1.4em; }
+
+/* her bikes, along the bottom */
+.g-bikes { grid-area: bikes; display: flex; gap: 10px; min-width: 0; padding: 8px 10px; align-items: stretch; }
+.g-bikes .hair-label { width: 74px; text-align: center; line-height: 1.15; }
+.g-slots { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 2px; }
+.g-slots::-webkit-scrollbar { display: none; }
+.g-slot { flex: none; height: 100%; aspect-ratio: 1.25; }
+.g-add { flex-direction: column; border-style: dashed; }
+.g-add .g-ico { font-size: 38px; margin-bottom: 14px; }
+
+@media (orientation: portrait) {
+  .garage { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--top-h) minmax(0, .82fr) minmax(0, 1fr) var(--hair-h); grid-template-areas: "top" "stage" "panel" "bikes"; }
+}
+@media (max-width: 700px) {
+  .g-title span { display: none; }
+  .g-go { font-size: 18px; padding: 6px 14px; }
+}
+@media (max-height: 520px) {
+  .garage { grid-template-rows: var(--top-h) minmax(0, 1fr) 62px; }
+  .g-bikes { padding: 5px 8px; }
+  .g-bikes .hair-label, .g-add .label, .g-turn { display: none; }
+  .g-add .g-ico { margin-bottom: 0; font-size: 30px; }
+  .g-ico { font-size: 34px; }
+  .g-tabs .cat { min-height: 46px; }
+}
+
+/* elsewhere: the tag on her bike at home, the button on the card at the end of a ride */
+.room-tag.rose { border-color: #ffb3d1; color: #c2336f; }
+.ride-card .row.tight { margin-top: 10px; }
+.ride-card .btn.small .du-ico { margin-inline-end: 4px; }

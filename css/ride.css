@@ -2,9 +2,15 @@
 .ride { position: fixed; inset: 0; z-index: 50; background: #cfeaff; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
 .ride-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .ride-fade { position: absolute; inset: 0; background: #fff; opacity: 1; pointer-events: none; z-index: 3; }
+/* going fast: white streaks rush past the edges of the picture (ride.js sets how strong) */
+.ride-rush { position: absolute; left: 50%; top: 50%; width: 150vmax; height: 150vmax; margin: -75vmax 0 0 -75vmax; z-index: 2; display: none; opacity: 0; pointer-events: none; will-change: transform, opacity;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0) 0deg 5.2deg, rgba(255, 255, 255, .85) 5.7deg 6deg, rgba(255, 255, 255, 0) 6.5deg 10deg, rgba(255, 255, 255, .6) 10.3deg 10.5deg, rgba(255, 255, 255, 0) 11deg 17deg);
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 24%, #000 52%); mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 24%, #000 52%);
+  animation: ride-rush .24s steps(4) infinite; }
+@keyframes ride-rush { to { transform: rotate(17deg); } }
 .ride-hud { position: absolute; inset: 0; z-index: 4; pointer-events: none; padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }
 .ride-hud > * { pointer-events: auto; }
-.ride-hud.quiet .ride-ctl, .ride-hud.quiet .ride-street, .ride-hud.quiet .ride-chip { display: none; }
+.ride-hud.quiet .ride-ctl, .ride-hud.quiet .ride-speed, .ride-hud.quiet .ride-street, .ride-hud.quiet .ride-chip { display: none; }
 .ride .du-ico { width: 1.2em; height: 1.2em; display: inline-block; vertical-align: -0.22em; flex: none; }
 
 /* top bar: home · the way from home to school · stars · sound */
@@ -62,9 +68,29 @@
 .rc-bell { right: calc(16px + env(safe-area-inset-right) + clamp(76px, 11vw, 112px) + 14px); width: clamp(64px, 9vw, 92px); height: clamp(64px, 9vw, 92px); background: rgba(255, 255, 255, .92); box-shadow: 0 6px 0 #dccbee, 0 12px 20px rgba(60, 30, 90, .2); border-color: #ffd24d; }
 .rc-bell .du-ico { width: 62%; height: 62%; }
 .rc-bell.ring .du-ico { animation: ride-ring .5s; }
+/* her speed: hold ▲ to go faster, ▼ to slow down; the number between them is how fast she goes */
+.ride-speed { position: absolute; right: calc(16px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom) + clamp(76px, 11vw, 112px) + 14px); width: clamp(76px, 11vw, 112px);
+  display: none; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px; border-radius: 30px; background: rgba(255, 255, 255, .9); box-shadow: 0 6px 0 rgba(120, 90, 160, .22), 0 12px 20px rgba(60, 30, 90, .2); touch-action: none; }
+.ride.riding .ride-speed { display: flex; }
+.rs-btn { position: relative; height: clamp(50px, 7vw, 70px); border-radius: 24px 24px 12px 12px; display: flex; align-items: center; justify-content: center; background: #2fc7a0; box-shadow: 0 4px 0 #1fa583; touch-action: none; transition: transform .06s; }
+.rs-btn.rs-down { border-radius: 12px 12px 24px 24px; background: #ff9d4d; box-shadow: 0 4px 0 #e07a26; }
+.rs-btn .du-ico { width: 58%; height: 58%; }
+.rs-btn:active, .rs-btn.down { transform: translateY(3px) scale(.97); box-shadow: 0 1px 0 #1fa583; }
+.rs-btn.rs-down:active, .rs-btn.rs-down.down { box-shadow: 0 1px 0 #e07a26; }
+.rs-read { text-align: center; line-height: 1; color: var(--ink); padding: 1px 0 2px; }
+.rs-read b { display: block; font-size: clamp(24px, 3.2vw, 34px); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rs-read small { display: block; font-size: clamp(11px, 1.3vw, 14px); font-weight: 600; color: var(--ink-soft); margin-top: 1px; }
+.rs-read i { display: block; height: 7px; margin: 4px 6px 0; border-radius: 99px; background: #e9defa; overflow: hidden; direction: ltr; }
+.rs-read u { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #2fc7a0, #ffd24d 55%, #ff5fa2); }
+.ride-speed.hot .rs-read b { color: var(--pink-d); }
+/* the keys, on a computer */
+.ride kbd { display: none; position: absolute; top: -9px; inset-inline-end: -6px; min-width: 26px; padding: 2px 6px; border-radius: 8px; background: #fff; color: var(--ink); font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1.3; text-align: center; box-shadow: 0 2px 0 #dccbee, 0 3px 8px rgba(60, 30, 90, .2); }
+@media (hover: hover) and (pointer: fine) { .ride kbd { display: block; } }
 @keyframes ride-ring { 20% { transform: rotate(-22deg); } 40% { transform: rotate(18deg); } 60% { transform: rotate(-12deg); } 80% { transform: rotate(8deg); } }
 /* teaching: the button to press glows */
 .ride.hint-steer .rc-left, .ride.hint-steer .rc-right, .ride.hint-jump .rc-jump, .ride.hint-bell .rc-bell { animation: ride-glow .7s ease-in-out infinite alternate; }
+.ride.hint-speed .rs-up { animation: ride-glow-go .7s ease-in-out infinite alternate; }
+@keyframes ride-glow-go { from { box-shadow: 0 4px 0 #1fa583, 0 0 0 0 rgba(255, 210, 77, .95); } to { box-shadow: 0 4px 0 #1fa583, 0 0 0 14px rgba(255, 210, 77, 0); transform: scale(1.08); } }
 @keyframes ride-glow { from { box-shadow: 0 6px 0 rgba(106, 79, 208, .9), 0 0 0 0 rgba(255, 210, 77, .95); } to { box-shadow: 0 6px 0 rgba(106, 79, 208, .9), 0 0 0 16px rgba(255, 210, 77, 0); transform: scale(1.1); } }
 
 /* cards: loading, the end, "stop riding?" */
@@ -99,10 +125,17 @@
   .ride-panel.end { justify-content: center; align-items: flex-end; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
   .ride-panel.end .ride-card { width: min(480px, 94vw); }
   .ride-ctl { bottom: calc(26px + env(safe-area-inset-bottom)); }
+  .ride-speed { bottom: calc(26px + env(safe-area-inset-bottom) + clamp(76px, 11vw, 112px) + 14px); }
   .ride-msg { top: 26%; }
 }
+@media (max-height: 460px) {
+  .rs-btn { height: 44px; }
+  .ride-speed { gap: 3px; padding: 5px; }
+  .rs-read small { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .ride-wheel, .ride.hint-steer .rc-left, .ride.hint-steer .rc-right, .ride.hint-jump .rc-jump, .ride.hint-bell .rc-bell { animation: none; }
+  .ride-wheel, .ride.hint-steer .rc-left, .ride.hint-steer .rc-right, .ride.hint-jump .rc-jump, .ride.hint-bell .rc-bell, .ride.hint-speed .rs-up { animation: none; }
+  .ride-rush { display: none !important; }
 }
 .room-bike .room-bike-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: transform .15s; }
 .room-bike:active .room-bike-art { transform: scale(.96) rotate(-2deg); }

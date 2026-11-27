@@ -13,7 +13,8 @@
   const tone = (f, o) => { if (DU.sound && DU.sound.tone) DU.sound.tone(f, o); };
   const ico = (name) => (DU.icon && DU.icon(name)) || '';
 
-  const CRUISE = 6.4;      // m/s
+  const CRUISE = 6.4;      // m/s: the speed she sets off at
+  const VMAX = 32;         // m/s: flat out, about 115 km/h (she chooses her speed with ▲ and ▼)
   const CAM_BACK = 4.9, CAM_UP = 2.55; // the chase camera: metres behind her and above the road
   const LAT_MAX = 2.6;     // how far from the middle of the way she can steer
   const LANES = [-1.75, 0, 1.75];
@@ -27,6 +28,9 @@
     left: svg('<path d="M30 8L13 24L30 40" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>'),
     right: svg('<path d="M18 8L35 24L18 40" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>'),
     jump: svg('<path d="M24 38V12M11 23L24 9L37 23" fill="none" stroke="#fff" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+    fast: svg('<path d="M10 25L24 11L38 25M10 39L24 25L38 39" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'),
+    slow: svg('<path d="M10 9L24 23L38 9M10 23L24 37L38 23" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'),
+    rocket: svg('<g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M17 31C15 20 21 9 32 5C36 16 32 27 23 34Z" fill="#fff"/><path d="M17 31L10 30L16 22M23 34L25 41L31 33" fill="#ff5fa2"/><circle cx="26.500" cy="17" r="4" fill="#7de3e0"/><path d="M15 34C10 35 8 39 7 43C11 42 15 41 17 37" fill="#ffd24d"/></g>'),
     bell: svg('<g stroke="#4b3564" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"><path d="M9 34C13 31 12 26 13 20C14 13 18 9 24 9C30 9 34 13 35 20C36 26 35 31 39 34Z" fill="#ffd24d"/><path d="M20 38C21 41 27 41 28 38" fill="none"/><path d="M24 9V5" fill="none"/><path d="M17 17C18 14 20 13 22 12.5" fill="none" stroke="#fff"/></g>'),
     red: svg('<circle cx="24" cy="24" r="17" fill="#ff5a5a" stroke="#fff" stroke-width="5"/>'),
     green: svg('<circle cx="24" cy="24" r="17" fill="#3fd07a" stroke="#fff" stroke-width="5"/>'),
@@ -143,7 +147,8 @@
   function makeRide(o) {
     const T = window.THREE, K = DU.rideKit, data = DU.RIDE_DATA;
     const state = o.state || DU.defaultState();
-    let dead = false, raf = 0;
+    const bikeSpec = DU.bike.norm(o.bike); // her bike (bike.js): how it looks, its bell, what it leaves behind
+    let dead = false, raf = 0, trail = null;
     const api = { stop: () => quit() };
 
     /* ----- page ----- */
@@ -151,6 +156,7 @@
     el.className = 'ride'; el.dir = 'rtl';
     el.innerHTML = `
       <canvas class="ride-canvas"></canvas>
+      <div class="ride-rush"></div>
       <div class="ride-fade"></div>
       <div class="ride-hud" hidden>
         <div class="ride-top">
@@ -163,10 +169,15 @@
         <div class="ride-chip"></div>
         <div class="ride-msg"></div>
         <div class="ride-pops"></div>
-        <button class="ride-ctl rc-left" data-hold="left" aria-label="שמאלה">${ICON.left}</button>
-        <button class="ride-ctl rc-right" data-hold="right" aria-label="ימינה">${ICON.right}</button>
-        <button class="ride-ctl rc-jump" data-tap="jump" aria-label="קפיצה">${ICON.jump}<span>קפיצה</span></button>
-        <button class="ride-ctl rc-bell" data-tap="bell" aria-label="פעמון">${ICON.bell}</button>
+        <button class="ride-ctl rc-left" data-hold="left" aria-label="שמאלה">${ICON.left}<kbd>←</kbd></button>
+        <button class="ride-ctl rc-right" data-hold="right" aria-label="ימינה">${ICON.right}<kbd>→</kbd></button>
+        <button class="ride-ctl rc-jump" data-tap="jump" aria-label="קפיצה">${ICON.jump}<span>קפיצה</span><kbd>רווח</kbd></button>
+        <button class="ride-ctl rc-bell" data-tap="bell" aria-label="פעמון">${ICON.bell}<kbd>B</kbd></button>
+        <div class="ride-speed">
+          <button class="rs-btn rs-up" data-hold="up" aria-label="מהר יותר">${ICON.fast}<kbd>↑</kbd></button>
+          <div class="rs-read"><b dir="ltr">0</b><small>קמ״ש</small><i><u></u></i></div>
+          <button class="rs-btn rs-down" data-hold="down" aria-label="לאט יותר">${ICON.slow}<kbd>↓</kbd></button>
+        </div>
       </div>
       <div class="ride-panel" hidden></div>`;
     document.body.appendChild(el);
@@ -174,6 +185,7 @@
     const hud = $('.ride-hud', el), panel = $('.ride-panel', el), fadeEl = $('.ride-fade', el);
     const msgEl = $('.ride-msg', el), streetEl = $('.ride-street', el), chipEl = $('.ride-chip', el), popsEl = $('.ride-pops', el);
     const starsEl = $('.ride-stars span', el), barFill = $('.rp-bar i', el), barBike = $('.rp-bar b', el);
+    const speedEl = $('.ride-speed', el), speedNum = $('.rs-read b', el), speedBar = $('.rs-read u', el), rushEl = $('.ride-rush', el);
 
     function fail(e) {
       console.error('ride failed', e);
@@ -192,26 +204,34 @@
     renderer.setPixelRatio(pixelRatio);
     scene = new T.Scene();
     camera = new T.PerspectiveCamera(60, 1.5, 0.3, 2500);
+    let baseFov = 60;
     function resize() {
       const w = el.clientWidth || innerWidth, h = el.clientHeight || innerHeight;
       renderer.setSize(w, h, false);
-      camera.aspect = w / h; camera.fov = w / h < 1 ? 78 : w / h < 1.25 ? 68 : 60;
+      camera.aspect = w / h; baseFov = w / h < 1 ? 78 : w / h < 1.25 ? 68 : 60;
+      camera.fov = baseFov + ((g && g.fast) || 0) * FOV_KICK;
       camera.updateProjectionMatrix();
     }
+    const FOV_KICK = 9; // the picture opens up when she goes fast
+    let g = null; // the game state (made below; resize() looks at it)
     resize();
     window.addEventListener('resize', resize);
     $('.ride-canvas', el).addEventListener('webglcontextlost', (e) => { e.preventDefault(); if (!dead) fail(new Error('context lost')); });
 
     /* ----- game state ----- */
     const rnd = K.rng(20261126 + (o.run || 0) * 7919);
-    const g = {
+    g = {
       mode: 'load',          // load · intro · count · ride · arrive · done
       t: 0, s: 3, lat: 0.9, v: 0, y: 0, vy: 0, steer: 0, heading: 0,
+      want: CRUISE,          // the speed she asked for: ▲ and ▼ move it and it stays where she leaves it
+      fast: 0, top: 0, moved: 0, rideT: 0, stillT: 0, kmh: -1,
       stars: 0, polite: 0, bumps: 0, combo: 0, comboT: 0, hurtT: 0, wobble: 0, boostT: 0,
       paused: false, seen: {},
     };
-    const input = { left: false, right: false, drag: 0, dragging: false };
-    let things = [], lights = [], crossings = [], friends = [], ambient = [], level = [];
+    const input = { left: false, right: false, up: false, down: false, drag: 0, dragging: false };
+    let things = [], lights = [], crossings = [], friends = [], ambient = [], level = [], corners = [];
+    /* how fast she may go when she has to stand still d metres ahead: gently near the stop, firmly from far away */
+    const stopV = (d) => (d <= 12 ? Math.sqrt(Math.max(0, 4.2 * (d - 0.15))) : Math.sqrt(49.8 + 14 * (d - 12)));
     let streetIdx = -1, chips = [];
     const tmp = {}, tmp2 = {};
     const camPos = new T.Vector3(), camLook = new T.Vector3(), v3 = new T.Vector3();
@@ -259,7 +279,6 @@
     const sfx = {
       star(n) { tone(SCALE[Math.min(n, SCALE.length - 1)], { dur: 0.09, type: 'sine', vol: 0.12, slide: SCALE[Math.min(n, SCALE.length - 1)] * 1.5 }); },
       big() { [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, { at: i * 0.06, dur: 0.16, type: 'triangle', vol: 0.14 })); },
-      bell() { tone(2093, { dur: 0.5, type: 'sine', vol: 0.16 }); tone(3136, { dur: 0.35, type: 'sine', vol: 0.06 }); tone(2093, { at: 0.16, dur: 0.6, type: 'sine', vol: 0.15 }); tone(3136, { at: 0.16, dur: 0.4, type: 'sine', vol: 0.05 }); },
       jump() { tone(420, { dur: 0.16, type: 'sine', vol: 0.12, slide: 880 }); },
       land() { tone(160, { dur: 0.09, type: 'sine', vol: 0.16, slide: 90 }); },
       bump() { tone(300, { dur: 0.22, type: 'triangle', vol: 0.2, slide: 120 }); tone(220, { at: 0.12, dur: 0.2, type: 'sine', vol: 0.12, slide: 110 }); },
@@ -278,7 +297,7 @@
     function tune(dt) {
       tuneT -= dt;
       if (tuneT > 0) return;
-      tuneT = 0.3;
+      tuneT = 0.3 / (1 + g.fast * 0.7); // the tune hurries along with her
       tone(TUNE[tuneI % TUNE.length], { dur: 0.22, type: 'triangle', vol: 0.035 });
       if (tuneI % 4 === 0) tone(TUNE[tuneI % TUNE.length] / 4, { dur: 0.5, type: 'sine', vol: 0.05 });
       tuneI++;
@@ -293,10 +312,11 @@
       try { world = DU.rideWorld.build(scene, data, { quality: o.quality || 'high' }); }
       catch (e) { console.error('world failed', e); world = fallbackWorld(T, K, scene, data); }
       if (world && world.ready) await world.ready;
-      try { DU.rideRider.CHASE = { y: CAM_UP, z: -CAM_BACK }; rider = await DU.rideRider.make(state, {}); }
+      try { DU.rideRider.CHASE = { y: CAM_UP, z: -CAM_BACK }; rider = await DU.rideRider.make(state, { bike: o.bike }); }
       catch (e) { console.error('rider failed', e); rider = fallbackRider(T, K); }
       if (dead) return;
       scene.add(rider.group);
+      try { trail = DU.rideBike.trail(bikeSpec.trail); if (trail) scene.add(trail.obj); } catch (e) { console.error('trail failed', e); trail = null; }
 
       // things on the way
       level = buildLevel(P, data, rnd);
@@ -320,11 +340,28 @@
       parkCars();
       schoolEnd();
       landmarks();
+      corners = findCorners();
       veil.remove();
       hud.hidden = false;
       intro();
       loop.last = performance.now();
       raf = requestAnimationFrame(loop);
+    }
+
+    /* the sharp corners of the way: she slows for them by herself, however fast she was asked to go */
+    function findCorners() {
+      const out = [];
+      const ang = (s) => { P.at(s, tmp); return Math.atan2(tmp.tx, tmp.tz); };
+      let cur = null;
+      for (let s = 6; s < P.length - 6; s += 2) {
+        let d = ang(s + 4) - ang(s - 4);
+        while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+        d = Math.abs(d);
+        if (d > 0.3) { if (cur) { cur.s1 = s + 4; cur.k = Math.max(cur.k, d / 8); } else out.push((cur = { s0: s - 4, s1: s + 4, k: d / 8 })); }
+        else cur = null;
+      }
+      out.forEach((c) => (c.v = clamp(Math.sqrt(13 / c.k), 8, VMAX)));
+      return out;
     }
 
     /* parked cars along the streets, merged into a few meshes so they cost almost nothing */
@@ -445,6 +482,7 @@
       g.mode = 'ride';
       el.classList.add('riding');
       setTimeout(() => { if (!dead && !g.seen.steer) { el.classList.add('hint-steer'); setTimeout(() => el.classList.remove('hint-steer'), 4200); } }, 600);
+      setTimeout(() => { if (!dead && !g.seen.speed && g.mode === 'ride') { el.classList.add('hint-speed'); setTimeout(() => { if (g.want > 0.5) el.classList.remove('hint-speed'); }, 5200); } }, 6500);
     }
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -463,7 +501,7 @@
       const back = CAM_BACK, up = CAM_UP;
       P.at(g.s - back, tmp);
       out.set(tmp.x + tmp.nx * g.lat * 0.6, up + g.y * 0.35, tmp.z + tmp.nz * g.lat * 0.6);
-      P.at(g.s + 9, tmp);
+      P.at(g.s + 9 + g.v * 0.22, tmp); // going fast, she looks further down the road
       look.set(tmp.x + tmp.nx * g.lat * 0.35, 1.25 + g.y * 0.3, tmp.z + tmp.nz * g.lat * 0.35);
     }
     const camT = new T.Vector3(), lookT = new T.Vector3();
@@ -475,13 +513,13 @@
     }
     function bell() {
       if (g.mode !== 'ride' && g.mode !== 'count' && g.mode !== 'arrive') return;
-      sfx.bell(); if (rider.bell) rider.bell();
+      DU.bike.ring(bikeSpec.bell); if (rider.bell) rider.bell();
       g.seen.bell = true; el.classList.remove('hint-bell');
       const b = $('.rc-bell', el); b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring');
       let thanked = 0;
       things.forEach((it) => {
         const ds = it.s - g.s;
-        if (it.done || ds < -2 || ds > 30) return;
+        if (it.done || ds < -2 || ds > 30 + g.v * 1.2) return;
         if (it.type === 'pigeon' && !it.fled) { flee(it, true); thanked++; }
         if (it.type === 'walker' && !it.aside) { it.aside = true; it.target = (it.lat >= 0 ? 1 : -1) * 3.3; thanked += 2; if (it.obj.userData.wave) it.obj.userData.wave(); }
         if (it.type === 'cyclist' && !it.waved) { it.waved = true; thanked++; if (it.obj.userData.wave) it.obj.userData.wave(); }
@@ -505,6 +543,7 @@
     function bump(it) {
       if (g.hurtT > 0) return;
       g.hurtT = 1.3; g.wobble = 1; g.v *= 0.3; g.bumps++; g.combo = 0;
+      g.want = Math.min(g.want, CRUISE); // after a bump she sets off again at the easy speed
       sfx.bump(); pop('אופס!', 'oops');
       if (it && it.obj.userData.bump) it.obj.userData.bump(it.lat >= g.lat ? 1 : -1);
     }
@@ -519,33 +558,52 @@
         const wantSteer = g.mode === 'ride' ? clamp(key + input.drag, -1, 1) : 0;
         if (wantSteer) { g.seen.steer = true; }
         g.steer = damp(g.steer, wantSteer, 9, dt);
-        const sp = clamp(g.v / CRUISE, 0, 1.2);
+        const sp = clamp(g.v / CRUISE, 0, 1.8);
         g.lat = clamp(g.lat + g.steer * 4.4 * dt * (0.35 + 0.65 * sp), -LAT_MAX, LAT_MAX);
         if (g.mode === 'arrive') g.lat = damp(g.lat, 0, 2.5, dt);
 
-        // speed: cruise, slow for a red light, stop at the school
-        let vT = CRUISE;
+        // speed: as fast as she asked for; she slows by herself for a sharp corner and a red light, and stops at the school
         const X = crossings.find((c) => !c.passed);
+        if (g.mode === 'ride') {
+          g.rideT += dt;
+          const th = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+          if (th && !(X && X.waiting)) {
+            g.want = clamp(g.want + (th > 0 ? 8 : -16) * dt, 0, VMAX);
+            if (!g.seen.speed) { g.seen.speed = true; el.classList.remove('hint-speed'); }
+          }
+          // she stopped and stays there: the "faster" button glows
+          if (g.want < 0.5 && g.v < 0.3 && !(X && X.waiting)) { g.stillT += dt; if (g.stillT > 2.2) el.classList.add('hint-speed'); }
+          else if (g.stillT) { g.stillT = 0; el.classList.remove('hint-speed'); }
+        }
+        let vT = g.mode === 'ride' ? g.want : CRUISE;
+        for (let i = 0; i < corners.length; i++) {
+          const c = corners[i];
+          if (g.s > c.s1) continue;
+          vT = Math.min(vT, g.s >= c.s0 ? c.v : Math.sqrt(c.v * c.v + 14 * (c.s0 - g.s)));
+          break;
+        }
         if (X) {
           const dist = X.stopS - g.s;
           if (!X.green) {
-            if (dist < 34) vT = Math.min(vT, Math.sqrt(Math.max(0, 2 * 2.1 * (dist - 0.15))));
-            if (dist < 30 && !X.told) { X.told = true; say(`${ICON.red}<b>אור אדום</b><small>עוצרים ומחכים</small>`, 2400, 'light'); sfx.red(); }
+            vT = Math.min(vT, stopV(dist));
+            if (dist < 30 + g.v * 2.4 && !X.told) { X.told = true; say(`${ICON.red}<b>אור אדום</b><small>עוצרים ומחכים</small>`, 2400, 'light'); sfx.red(); }
             if (dist < 0.5 && g.v < 0.25 && !X.waiting) { X.waiting = true; X.timer = 4.4; g.v = 0; }
             if (X.waiting) {
               vT = 0; X.timer -= dt;
               X.hold = X.timer < 2.4; // the cars get their red a little before she gets her green
               const busy = X.cars.some((c) => { const f = c.u * c.dir; return f > -9 && f < 12 + c.len; });
-              if (X.timer <= 0 && (!busy || X.timer < -4)) { X.waiting = false; X.green = true; X.poles.forEach((p) => p.userData.set && p.userData.set('green')); say(`${ICON.green}<b>ירוק!</b><small>ממשיכים</small>`, 1500, 'light go'); sfx.green(); }
+              if (X.timer <= 0 && (!busy || X.timer < -4)) { X.waiting = false; X.green = true; g.want = Math.max(g.want, CRUISE); X.poles.forEach((p) => p.userData.set && p.userData.set('green')); say(`${ICON.green}<b>ירוק!</b><small>ממשיכים</small>`, 1500, 'light go'); sfx.green(); }
             }
           }
           if (g.s > X.s1 + 2) X.passed = true;
         }
-        if (g.mode === 'arrive') vT = Math.min(vT, Math.sqrt(Math.max(0, 2 * 2.4 * (L - 0.6 - g.s))));
+        vT = Math.min(vT, g.mode === 'arrive' ? Math.sqrt(Math.max(0, 4.8 * (L - 0.6 - g.s))) : stopV(L - 0.6 - g.s));
         if (g.hurtT > 0) { g.hurtT -= dt; vT = Math.min(vT, CRUISE * 0.75); }
         g.wobble = Math.max(0, g.wobble - dt * 1.6);
-        g.v = g.v < vT ? Math.min(vT, g.v + 3.4 * dt) : Math.max(vT, g.v - 7 * dt);
-        g.s += g.v * dt;
+        g.v = g.v < vT ? Math.min(vT, g.v + (g.v < CRUISE ? 4.5 : 9) * dt) : Math.max(vT, g.v - 14 * dt);
+        g.moved = g.v * dt; // how far she goes in this frame (nothing on the way is skipped, however fast she is)
+        g.s += g.moved;
+        if (g.v > g.top) g.top = g.v;
 
         // the hop
         if (g.y > 0 || g.vy > 0) {
@@ -557,7 +615,12 @@
         if (g.v > 1) tune(dt);
       }
       const turn = placeRider(dt);
-      rider.update(dt, { speed: g.v, steer: clamp(g.steer + turn * 6, -1, 1), braking: false });
+      rider.update(dt, { speed: g.v, steer: clamp(g.steer + turn * 6, -1, 1), braking: (g.mode === 'ride' && input.down) || g.v < 0.05 });
+      g.fast = damp(g.fast, g.mode === 'ride' ? clamp((g.v - CRUISE) / (VMAX - CRUISE), 0, 1) : 0, 4, dt);
+      if (trail) { // it starts at the back wheel
+        const sn = Math.sin(rider.group.rotation.y), cs = Math.cos(rider.group.rotation.y);
+        trail.update(dt, rider.group.position.x - sn * 0.5, g.y + 0.125, rider.group.position.z - cs * 0.5, g.mode === 'ride' || g.mode === 'arrive' ? g.v : 0);
+      }
 
       updateThings(dt);
       updateTraffic(dt);
@@ -570,8 +633,10 @@
       // camera
       if (g.mode === 'ride' || g.mode === 'count' || (g.mode === 'arrive' && !g.frontCam)) {
         chaseTarget(camT, lookT);
-        camPos.x = damp(camPos.x, camT.x, 5, dt); camPos.y = damp(camPos.y, camT.y, 5, dt); camPos.z = damp(camPos.z, camT.z, 5, dt);
-        camLook.x = damp(camLook.x, lookT.x, 7, dt); camLook.y = damp(camLook.y, lookT.y, 7, dt); camLook.z = damp(camLook.z, lookT.z, 7, dt);
+        // the camera follows more tightly the faster she goes, so it only falls a little further behind
+        const kf = clamp((g.v - CRUISE) / (VMAX - CRUISE), 0, 1), rc = Math.max(5, g.v / (1.28 + 0.75 * kf)), rl = Math.max(7, g.v / (0.9 + 2 * kf));
+        camPos.x = damp(camPos.x, camT.x, rc, dt); camPos.y = damp(camPos.y, camT.y, 5, dt); camPos.z = damp(camPos.z, camT.z, rc, dt);
+        camLook.x = damp(camLook.x, lookT.x, rl, dt); camLook.y = damp(camLook.y, lookT.y, 7, dt); camLook.z = damp(camLook.z, lookT.z, rl, dt);
       } else if (g.frontCam) {
         g.frontT += dt;
         P.at(L + 3.4 - Math.min(0.8, g.frontT * 0.2), tmp);
@@ -584,10 +649,20 @@
         P.at(g.s + 3.3 - g.t * 0.1, tmp);
         camPos.set(tmp.x + tmp.nx * (g.lat - 1.5), 1.3, tmp.z + tmp.nz * (g.lat - 1.5));
       }
+      const fov = baseFov + g.fast * FOV_KICK;
+      if (Math.abs(camera.fov - fov) > 0.04) { camera.fov = fov; camera.updateProjectionMatrix(); }
       camera.position.copy(camPos); camera.lookAt(camLook);
       if (world && world.update) world.update(dt, g.t, camera);
 
       // HUD
+      const kmh = Math.round(g.v * 3.6);
+      if (kmh !== g.kmh) {
+        g.kmh = kmh; speedNum.textContent = kmh;
+        speedBar.style.width = Math.round(clamp(g.v / VMAX, 0, 1) * 100) + '%';
+        speedEl.classList.toggle('hot', g.v > 19);
+      }
+      const rush = Math.round(Math.max(0, g.fast - 0.12) * 1.14 * 20) / 20; // the streaks at the edges of the picture
+      if (rush !== g.rush) { g.rush = rush; rushEl.style.opacity = rush; rushEl.style.display = rush ? 'block' : 'none'; }
       const k = clamp(g.s / L, 0, 1);
       barFill.style.width = k * 100 + '%'; barBike.style.right = k * 100 + '%';
       const st = data.streets || [];
@@ -621,7 +696,7 @@
           }
         } else if (it.type === 'cat' || it.type === 'ball') {
           const sp = it.type === 'cat' ? 1.9 : 2.6;
-          if (!it.go && it.s - g.s < 30) {
+          if (!it.go && it.s - g.s < clamp(g.v * 4.7, 30, 100)) {
             it.go = true;
             if (obj.userData.mode) { obj.userData.mode('walk'); obj.userData.speed = sp; }
             if (it.type === 'ball' && obj.userData.roll) { P.at(it.s, tmp2); obj.userData.roll(tmp2.nx * it.dir * sp, tmp2.nz * it.dir * sp); }
@@ -642,12 +717,12 @@
         if (obj.userData.gone) { obj.visible = false; it.done = true; continue; }
         if (g.mode !== 'ride') continue;
 
-        const ds = it.s - g.s, dl = it.lat - g.lat;
+        const ds = it.s - g.s, dl = it.lat - g.lat, gone = -g.moved; // gone: what she passed during this frame
         if (it.type === 'star') {
-          if (it.taken) continue;
-          // a gentle pull when she is close
-          if (ds < 2.2 && ds > -0.8 && Math.abs(dl) < 1.5 && Math.abs(it.y - g.y) < 1.3) { it.lat = damp(it.lat, g.lat, 10, dt); place(obj, it.s, it.lat, damp(obj.position.y, it.y + (g.y - it.y) * 0.6, 8, dt)); }
-          if (Math.abs(ds) < 0.9 && Math.abs(dl) < 0.95 && Math.abs(it.y - g.y) < 1.15) {
+          if (it.taken) { obj.position.x = rider.group.position.x; obj.position.z = rider.group.position.z; continue; } // its last sparkle stays over her head, however fast she rides on
+          // a gentle pull when she is close (it reaches further when she is fast)
+          if (ds < 2.2 + g.v * 0.1 && ds > gone - 0.8 && Math.abs(dl) < 1.5 && Math.abs(it.y - g.y) < 1.3) { it.lat = damp(it.lat, g.lat, 10 + g.v, dt); place(obj, it.s, it.lat, damp(obj.position.y, it.y + (g.y - it.y) * 0.6, 8, dt)); }
+          if (ds < 0.9 && ds > gone - 0.9 && Math.abs(it.lat - g.lat) < 0.95 + g.fast * 0.3 && Math.abs(it.y - g.y) < 1.15) {
             it.taken = true;
             const val = VALUE[it.kind] || 1;
             g.combo++; g.comboT = 1.1;
@@ -656,17 +731,17 @@
             if (obj.userData.collect) obj.userData.collect(); else { obj.visible = false; it.done = true; }
           }
         } else if (it.type === 'pigeon') {
-          if (!it.fled && ds < 3.2 && Math.abs(dl) < 2.4) { flee(it, false); }
+          if (!it.fled && ds < 3.2 + g.v * 0.2 && Math.abs(dl) < 2.4) { flee(it, false); }
         } else if (it.type === 'obst') {
           if (it.hit) continue;
-          const rr = it.r + 0.38;
-          if (Math.abs(ds) < Math.max(0.6, it.r * 0.85) && Math.abs(dl) < rr) {
+          const rr = it.r + 0.38, m = Math.max(0.6, it.r * 0.85);
+          if (ds < m && ds > gone - m && Math.abs(dl) < rr) {
             if (it.kind === 'puddle') { if (g.y < 0.25) { it.hit = true; sfx.splash(); pop('ספלאש!', 'splash'); g.v *= 0.8; if (obj.userData.splash) obj.userData.splash(); } }
             else if (g.y < Math.min(0.75, it.h * 0.7)) { it.hit = true; bump(it); }
           }
         } else if (it.type === 'cat' || it.type === 'ball' || it.type === 'walker' || it.type === 'cyclist') {
           if (it.hit) continue;
-          if (Math.abs(ds) < 0.8 && Math.abs(dl) < it.r + 0.4 && g.y < 0.5) {
+          if (ds < 0.8 && ds > gone - 0.8 && Math.abs(dl) < it.r + 0.4 && g.y < 0.5) {
             it.hit = true; bump(it);
             if (it.type === 'cat') { sfx.meow(); it.dir *= 1; }
           }
@@ -676,7 +751,7 @@
 
     function updateTraffic(dt) {
       crossings.forEach((X) => {
-        const near = g.s > X.s0 - 140 && g.s < X.s1 + 45;
+        const near = g.s > X.s0 - 260 && g.s < X.s1 + 45;
         if (!near) { if (X.cars.length && g.s > X.s1 + 45) { X.cars.forEach((c) => scene.remove(c.obj)); X.cars = []; } return; }
         const W = X.s1 - X.s0, laneS = [X.s0 + W * 0.2, X.s0 + W * 0.38, X.s0 + W * 0.62, X.s0 + W * 0.8];
         for (let d = 0; d < 2; d++) {
@@ -750,10 +825,12 @@
           <div class="ride-rows">${rows.map((r) => `<div class="ride-row"><span class="i">${r[0]}</span><span class="l">${r[1]}</span><span class="p" dir="ltr">+${r[2]}</span></div>`).join('')}</div>
           <div class="ride-total">${ico('star')} <span dir="ltr">+${total}</span></div>
           ${g.polite ? `<p class="ride-note">${ICON.bell} צלצלת בנימוס ${g.polite} פעמים — כל הכבוד!</p>` : ''}
+          ${g.top > CRUISE + 1.5 ? `<p class="ride-note">${ICON.rocket} הכי מהר שרכבת: <b dir="ltr">${Math.round(g.top * 3.6)}</b> קמ״ש</p>` : ''}
           <div class="row"><button class="btn big" data-ride="home">${ico('home')} הביתה</button><button class="btn white" data-ride="again">${ICON.bike} עוד רכיבה</button></div>
+          ${o.onGarage ? `<div class="row tight"><button class="btn white small" data-ride="garage">${DU.bike.icon('wrench')} לעצב את האופניים</button></div>` : ''}
         </div>`;
       panel.className = 'ride-panel end'; panel.hidden = false; hud.classList.add('quiet');
-      if (o.onReward) { try { o.onReward(total, { stars: g.stars, bumps: g.bumps, polite: g.polite }); } catch (e) { console.error(e); } }
+      if (o.onReward) { try { o.onReward(total, { stars: g.stars, bumps: g.bumps, polite: g.polite, top: g.top }); } catch (e) { console.error(e); } }
       DU.sound && DU.sound.play && DU.sound.play('buy');
     }
     function askExit() {
@@ -767,14 +844,16 @@
       if (dead) return;
       dead = true; cancelAnimationFrame(raf); clearTimeout(msgTimer);
       window.removeEventListener('resize', resize);
-      window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey);
+      window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('blur', letGo);
       document.removeEventListener('visibilitychange', onVis);
       try { if (world && world.dispose) world.dispose(); } catch (e) { console.error(e); }
       try { if (rider && rider.dispose) rider.dispose(); } catch (e) { console.error(e); }
+      try { if (trail) trail.dispose(); } catch (e) { console.error(e); }
       try { K.dispose(scene); renderer.dispose(); if (renderer.forceContextLoss) renderer.forceContextLoss(); } catch (e) { console.error(e); }
       el.remove(); if (veil.isConnected) veil.remove();
       DU.ride.live = null;
-      if (again) DU.ride.start(Object.assign({}, o, { veil: null, run: (o.run || 0) + 1 }));
+      if (again === 'garage' && o.onGarage) o.onGarage();
+      else if (again) DU.ride.start(Object.assign({}, o, { veil: null, run: (o.run || 0) + 1, bike: DU.bike.cur() }));
       else if (o.onExit) o.onExit();
     }
 
@@ -784,13 +863,17 @@
       const k = e.key;
       if (k === 'ArrowLeft' || k === 'a' || k === 'A' || k === 'ש') input.left = down;
       else if (k === 'ArrowRight' || k === 'd' || k === 'D' || k === 'ג') input.right = down;
-      else if (down && !e.repeat && (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W')) jump();
-      else if (down && !e.repeat && (k === 'Enter' || k === 'b' || k === 'B' || k === 'ArrowDown')) bell();
+      else if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === "'") input.up = down;
+      else if (k === 'ArrowDown' || k === 's' || k === 'S' || k === 'ד') input.down = down;
+      else if (k === ' ') { if (down && !e.repeat) jump(); }
+      else if (k === 'Enter' || k === 'b' || k === 'B' || k === 'נ') { if (down && !e.repeat) bell(); }
       else if (down && k === 'Escape') { if (g.paused) { g.paused = false; panel.hidden = true; } else askExit(); }
       else return;
       e.preventDefault();
     }
     window.addEventListener('keydown', onKey); window.addEventListener('keyup', onKey);
+    const letGo = () => { input.left = input.right = input.up = input.down = false; el.querySelectorAll('.down').forEach((b) => b.classList.remove('down')); }; // a key held when the window lost focus
+    window.addEventListener('blur', letGo);
     function onVis() { if (document.hidden && (g.mode === 'ride' || g.mode === 'count') && !g.paused) askExit(); }
     document.addEventListener('visibilitychange', onVis);
     el.querySelectorAll('[data-hold]').forEach((b) => {
@@ -823,6 +906,7 @@
       if (a === 'exit') askExit();
       else if (a === 'quit' || a === 'home') quit();
       else if (a === 'again') quit(true);
+      else if (a === 'garage') quit('garage');
       else if (a === 'resume') { g.paused = false; panel.hidden = true; loop.last = performance.now(); }
       else if (a === 'mute') { if (DU.app && DU.app.actions) DU.app.actions.mute(); b.innerHTML = ico(DU.sound && DU.sound.muted ? 'mute' : 'sound'); }
     });
@@ -846,7 +930,7 @@
     }
     loop.last = performance.now();
 
-    api.debug = { g, scene, camera, renderer, things, crossings, step: (dt) => update(dt), render: () => renderer.render(scene, camera), get P() { return P; }, get rider() { return rider; }, jump, bell };
+    api.debug = { g, input, scene, camera, renderer, things, crossings, get corners() { return corners; }, step: (dt) => update(dt), render: () => renderer.render(scene, camera), get P() { return P; }, get rider() { return rider; }, jump, bell };
     build().catch(fail);
     return api;
   }

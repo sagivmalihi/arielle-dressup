@@ -6,7 +6,8 @@
    opts.rig = true gives the same picture with the parts in groups that can move
    (see motion.js): all · head · hairback · hairsway · eyes · mouth · brows · arm-l/r · fore-l/r · body.
    opts.back = true (with opts.rig) draws her from behind: no face, the back hair over the body, wings on top,
-   mirrored left-right. opts.helmet = a colour puts a bike helmet on her head instead of the hat (front and back).
+   mirrored left-right. opts.helmet = a colour, or { c, style }, puts a bike helmet on her head instead of the hat
+   (front and back; the styles are in DU.drawHelmet).
    opts.only = [slots] draws just those items, with no body and no head (for a pet or a prop on its own).
    opts.heldTag = true (with opts.rig) wraps what she holds in <g data-held="l|r">.
    state.kind = 'wolf' | 'capy' draws a special character (species.js): fur, an animal head, ears, a tail (part "tail").
@@ -64,7 +65,7 @@
     const only = opts.only || null;
     const rig = !!opts.rig && !only;
     const back = rig && !!opts.back; // seen from behind
-    const helmet = opts.helmet || null;
+    const helmet = !opts.helmet ? null : typeof opts.helmet === 'string' ? { c: opts.helmet } : opts.helmet;
     const armBits = { heldL: '', heldR: '', overL: '', overBoth: '' }; // rig only: things that must move with an arm
     const add = (name, svg, slot) => {
       if (!svg) return;
@@ -145,7 +146,7 @@
     const headT = `translate(${n(R.cx)} ${n(R.headY)}) scale(${R.hs})`;
     const head = (svg) => (svg ? `<g transform="${headT}">${svg}</g>` : '');
 
-    const helmetSvg = helmet ? DU.drawHelmet(helmet, back) : '';
+    const helmetSvg = helmet ? DU.drawHelmet(helmet.c, back, helmet.style) : '';
     /* a special character: her own head, her ears over the hair (and over a helmet), earrings on those ears, a tail */
     const headBase = SP ? SP.head(sk, { uid, mouth: state.mouth, bald }) : DU.body.head(sk, state.face);
     const earBits = !SP ? '' : SP.ears(sk, { uid, back, hair: !bald && !helmet }) + (L.ears ? `<g transform="${SP.earT}">${L.ears}</g>` : '');
@@ -241,8 +242,41 @@
       DU.p('M-34 30Q-30 54 -20 70M0 34V74M34 30Q30 54 20 70', 'none', HP.line, 1.6, 'stroke-opacity=".4"');
   };
 
-  /* a bike helmet in head coordinates (drawn over the hair). back = seen from behind */
-  DU.drawHelmet = function (color, back) {
+  /* what stands on top of a helmet (head coordinates): 'cat' and 'bunny' ears, a 'unicorn' horn, a 'bow',
+     'dino' spikes, a 'crown'. The same from the front and from behind, but for the pink inside of the ears. */
+  function helmetTop(style, color, line, back) {
+    const pinkish = (c) => { const m = /^#(..)(..)(..)$/.exec(c) || []; const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16); return r > 215 && g < 190 && b > 120; };
+    const yellowish = (c) => { const m = /^#(..)(..)(..)$/.exec(c) || []; return parseInt(m[1], 16) > 215 && parseInt(m[2], 16) > 180 && parseInt(m[3], 16) < 150; };
+    /* an ear grows out of the shell: filled like the shell, outlined on its two free sides only */
+    const ear = (fillD, edgeD, innerD) => DU.both(0, `<path d="${fillD}" fill="${color}"/>` + (back || !innerD ? '' : `<path d="${innerD}" fill="#ffb3d3"/>`) + DU.p(edgeD, 'none', line, 2.6));
+    if (style === 'cat') return ear('M38 -138Q56 -166 80 -188Q92 -150 94 -110Z', 'M38 -138Q56 -166 80 -188Q92 -150 94 -110', 'M54 -142Q64 -160 76 -172Q83 -150 84 -126Z');
+    if (style === 'bunny') return ear('M28 -140Q22 -202 52 -238Q80 -200 66 -128Z', 'M28 -140Q22 -202 52 -238Q80 -200 66 -128', 'M40 -148Q36 -198 52 -222Q68 -196 57 -142Z');
+    if (style === 'unicorn') {
+      return ear('M50 -140Q62 -160 78 -172Q86 -146 88 -118Z', 'M50 -140Q62 -160 78 -172Q86 -146 88 -118', 'M62 -142Q68 -154 76 -160Q80 -146 81 -130Z') +
+        DU.p('M-15 -141L0 -216L15 -141Q0 -134 -15 -141Z', '#fff3c4', '#b9822a', 2.4) +
+        DU.p('M-11 -160L10 -169M-8 -178L7 -186M-5 -196L4 -201', 'none', '#e5a12a', 2.6) + DU.ov('M-9 -146L-1 -196L-3 -146Z', DU.HL);
+    }
+    if (style === 'bow') { const c = pinkish(color) ? '#ffffff' : '#ff7aae'; return DU.bow(0, -152, 38, c, DU.line(c)); }
+    if (style === 'dino') {
+      const c = yellowish(color) ? '#63c98a' : '#ffd54d', l = DU.line(c);
+      const spike = (a, h, w) => `<g transform="rotate(${a} 0 -36)">` + DU.p(`M${-w} -141Q${-w * 0.2} ${-150 - h * 0.6} 0 ${-146 - h}Q${w * 0.2} ${-150 - h * 0.6} ${w} -141Q0 -134 ${-w} -141Z`, c, l, 2.4) + '</g>';
+      return spike(-56, 20, 12) + spike(56, 20, 12) + spike(-29, 30, 14) + spike(29, 30, 14) + spike(0, 40, 16);
+    }
+    if (style === 'crown') {
+      return DU.p('M-32 -138L-37 -182L-18 -162L0 -194L18 -162L37 -182L32 -138Q0 -128 -32 -138Z', '#ffd060', '#b9822a', 2.4) +
+        DU.p('M-33 -149Q0 -139 33 -149', 'none', '#b9822a', 2) + DU.ov('M-30 -146L-33 -174L-24 -164L-22 -143Z', DU.HL) +
+        `<circle cx="0" cy="-194" r="5" fill="#ff7aae" stroke="#b9822a" stroke-width="1.8"/><circle cx="-37" cy="-182" r="4" fill="#7de3e0" stroke="#b9822a" stroke-width="1.8"/><circle cx="37" cy="-182" r="4" fill="#7de3e0" stroke="#b9822a" stroke-width="1.8"/>` +
+        `<path d="${DU.heartD(0, -152, 5.5)}" fill="#ff5f9e"/>`;
+    }
+    return '';
+  }
+
+  /* a bike helmet in head coordinates (drawn over the hair). back = seen from behind · style: see helmetTop() */
+  DU.HELMET_UP = { bunny: 92, unicorn: 70, crown: 48, dino: 42, cat: 42, bow: 30 }; // how far each style rises over the shell
+  DU.drawHelmet = function (color, back, style) {
+    return helmetShell(color, back) + (style && style !== 'plain' ? helmetTop(style, color, DU.line(color), back) : '');
+  };
+  function helmetShell(color, back) {
     const line = DU.line(color), dark = DU.mix(color, '#2b1630', 0.5), light = DU.light(color, 0.55);
     const strapC = '#6b6480', strapL = '#d9d5ea';
     const vent = (a, len, w, cy0) => `<g transform="rotate(${a} 0 -36)">` +
@@ -268,7 +302,7 @@
       DU.p('M-91 -38Q-62 -54 0 -64Q62 -54 91 -38', 'none', light, 3, 'stroke-opacity=".75"') +
       DU.star(-74, -66, 9, '#fff6c2', line, 1.8) +
       DU.ov('M-86 -84Q-74 -122 -40 -138Q-70 -116 -78 -78Z', DU.HL);
-  };
+  }
 
   /* Where the character stands on the card: feet a little above the bottom edge (room for the
      name ribbon), scaled so even the tallest girl in a tall hat fits. */

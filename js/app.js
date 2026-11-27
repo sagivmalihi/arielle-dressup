@@ -724,7 +724,7 @@
   }
 
   /* ---------------- the bike ride to school (ride*.js, fetched only when she first rides) ---------------- */
-  const RIDE_FILES = ['lib/three.min.js', 'js/ride-data.js', 'js/ride-kit.js', 'js/ride-models.js', 'js/ride-world.js', 'js/ride-rider.js', 'js/ride.js'];
+  const RIDE_FILES = ['lib/three.min.js', 'js/ride-data.js', 'js/ride-kit.js', 'js/ride-models.js', 'js/ride-world.js', 'js/ride-bike.js', 'js/ride-rider.js', 'js/ride.js', 'js/ride-garage.js'];
   let rideFiles = null;
   function loadRide() {
     if (rideFiles) return rideFiles;
@@ -741,17 +741,29 @@
   function startRide(state) {
     if (document.querySelector('.ride, .ride-load')) return;
     snd.unlock(); snd.play('pick');
+    const fromGarage = screen === 'garage';
+    if (DU.garage) DU.garage.close(); // one 3D picture at a time
     const veil = document.createElement('div');
     veil.className = 'ride-load';
     veil.innerHTML = `<div class="ride-load-card"><div class="ride-wheel">${ico('bike', '🚲')}</div><b>מכינים את האופניים…</b></div>`;
     document.body.appendChild(veil);
     loadRide().then(() => {
       DU.ride.start({
-        state: clone(state), veil, run: S.data.rides || 0,
+        state: clone(state), bike: DU.bike.cur(), veil, run: S.data.rides || 0,
         onReward(n) { S.addPoints(n); S.data.rides = (S.data.rides || 0) + 1; S.save(true); },
         onExit() { closeAll(); showHome(); setPointsUI(); },
+        onGarage() { closeAll(); showGarage(); },
       });
-    }).catch((e) => { console.error(e); veil.remove(); toast('אוי, הרכיבה לא נטענה. ננסה שוב?'); });
+    }).catch((e) => { console.error(e); veil.remove(); toast('אוי, הרכיבה לא נטענה. ננסה שוב?'); if (fromGarage) showHome(); });
+  }
+
+  /* ---------------- the bike workshop (ride-garage.js): she designs her bikes ---------------- */
+  function showGarage(tab) {
+    screen = 'garage'; closeAll();
+    const d = S.data, hero = d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl();
+    app.innerHTML = `<div class="screen g-wait"><div class="ride-load-card"><div class="ride-wheel">${ico('bike', '🚲')}</div><b>פותחים את הסדנה…</b></div></div>`;
+    loadRide().then(() => { if (screen === 'garage') DU.garage.open({ host: app, state: clone(hero), tab }); })
+      .catch((e) => { console.error(e); if (screen === 'garage') { showHome(); toast('אוי, הסדנה לא נפתחה. ננסה שוב?'); } });
   }
 
   /* ---------------- one click handler for everything ---------------- */
@@ -774,6 +786,7 @@
     shop() { snd.play('tap'); showShop(); },
     album() { snd.play('tap'); showAlbum(); },
     ride() { const d = S.data; startRide(d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl()); },
+    garage() { snd.play('tap'); showGarage(); },
     gift() {
       const g = S.data.gift, root = app.firstElementChild;
       if (!g || !DU.room || !DU.room.openGift) return;
@@ -862,6 +875,6 @@
 
   /* ---------------- go ---------------- */
   snd.setMuted(S.data.mute);
-  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, startRound, finish, confetti, toast, startRide, get state() { return st; }, get round() { return round; }, actions };
+  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, showGarage, startRound, finish, confetti, toast, confirm: confirmModal, startRide, get state() { return st; }, get round() { return round; }, actions };
   showHome();
 })();

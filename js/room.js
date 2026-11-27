@@ -1,7 +1,8 @@
 /* room.js — the home screen is her room.
    One illustration in a 1200×900 "scene" that is always fully visible (wall and floor bleed past it,
    so wider or taller screens just show more room), with real buttons laid over the things you can tap:
-   wardrobe → new character · the girl → continue · wall of frames → gallery · window → shop ·
+   wardrobe → new character · the girl → continue · wall of frames → gallery · window → shop · her bike → the ride ·
+   the tag on the bike → the bike workshop ·
    sticker book → album · gift box → a surprise · jar of stars → the points.
      DU.room.html(o)   o = { title, points, muted, hero, hasWip, gallery[≤5 states], gift, albumHave, albumTotal }
      DU.room.mount(root)
@@ -292,24 +293,8 @@
     return { head: -6 };
   }
 
-  /* her bike, parked by the door: the way out to the ride (ride.js) */
-  function bikeSvg() {
-    const K = '#4b3878';
-    const tube = (d) => `<path d="${d}" fill="none" stroke="${K}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#ff7aae" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
-    const wheel = (x) => `<circle cx="${x}" cy="146" r="40" fill="#fff" fill-opacity=".55" stroke="${K}" stroke-width="7"/><circle cx="${x}" cy="146" r="33" fill="none" stroke="#ffe7a6" stroke-width="3.5"/>` +
-      `<path d="M${x - 33} 146H${x + 33}M${x} 113V179M${x - 23} 123L${x + 23} 169M${x + 23} 123L${x - 23} 169" stroke="#c9b3ff" stroke-width="1.8"/><circle cx="${x}" cy="146" r="5" fill="#ffd060" stroke="${K}" stroke-width="2.5"/>`;
-    return `<svg class="room-bike-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 196" aria-hidden="true" focusable="false" stroke-linejoin="round" stroke-linecap="round">` +
-      `<ellipse cx="118" cy="188" rx="96" ry="6" fill="#b98a6a" fill-opacity=".25"/>` +
-      wheel(54) + wheel(182) +
-      tube('M98 146L54 146L86 96M98 146L84 90M88 100L156 96M98 146L158 104M156 92L160 110L182 146') +
-      `<path d="M156 94L152 66L136 60" fill="none" stroke="${K}" stroke-width="7"/><path d="M136 60L128 58" fill="none" stroke="#8b6cf0" stroke-width="9"/>` +
-      `<path d="M128 60q-9 4 -10 16M126 57q-12 0 -16 12M127 62q-4 8 -2 16" fill="none" stroke="#ff9ec4" stroke-width="2.6"/>` +
-      `<path d="M66 78q14 -9 34 0q-3 9 -17 9q-13 0 -17 -9Z" fill="#8b6cf0" stroke="${K}" stroke-width="4"/>` +
-      `<path d="M166 66h46l-5 32h-36Z" fill="#ffd9a3" stroke="${K}" stroke-width="4"/><path d="M169 77h40M171 88h36M180 66l2 32M196 66l-2 32" fill="none" stroke="#e0a868" stroke-width="2"/>` +
-      `<circle cx="178" cy="58" r="8" fill="#ff7aae" stroke="${K}" stroke-width="3"/><circle cx="194" cy="54" r="9" fill="#ffd060" stroke="${K}" stroke-width="3"/><circle cx="206" cy="61" r="7" fill="#c9b3ff" stroke="${K}" stroke-width="3"/><circle cx="178" cy="58" r="2.4" fill="#fff"/><circle cx="194" cy="54" r="2.6" fill="#fff"/><circle cx="206" cy="61" r="2.2" fill="#fff"/>` +
-      `<circle cx="98" cy="146" r="9" fill="#ffd060" stroke="${K}" stroke-width="3.5"/><path d="M98 146L112 162" stroke="${K}" stroke-width="5"/><rect x="104" y="159" width="18" height="7" rx="3" fill="#8b6cf0" stroke="${K}" stroke-width="2.5"/>` +
-      `</svg>`;
-  }
+  /* her bike, parked by the door, in the colours she gave it (bike.js): the way out to the ride (ride.js) */
+  const bikeSvg = () => (DU.bike ? DU.bike.sideSvg(DU.bike.cur(), 'room-bike-art') : '');
 
   R.html = function (o) {
     o = o || {};
@@ -328,6 +313,7 @@
         <button class="room-hot room-jarbtn" type="button" style="${box(22, 44, 120, 140)}" aria-label="הכוכבים שלי"></button>
         <div class="room-pointswrap" style="${at(196, 128)}"><div class="stars-pill room-points">${ico('star')}<span>${Number(o.points) || 0}</span></div></div>
         <button class="room-hot room-bike" data-act="ride" style="${box(34, 468, 236, 196)}" aria-label="לרכוב לבית הספר">${bikeSvg()}${tag(ico('bike') + 'לרכוב לבית הספר', 'sky', off(128, -4, -4))}</button>
+        ${DU.bike ? `<button class="room-hot room-garage" data-act="garage" style="${box(72, 330, 156, 80)}" aria-label="לעצב את האופניים">${tag(DU.bike.icon('wrench') + 'לעצב אופניים', 'rose', off(78, 40, 3))}</button>` : ''}
         ${o.gift ? `<button class="room-hot room-gift" data-act="gift" style="${box(92, 656, 164, 156)}" aria-label="הפתעה">${tag('הפתעה!', 'gold', off(116, -18, -6))}</button>` : ''}
         <div class="room-girl" style="${box(560 - 187.5, 838 - 912 * 0.5, 375, 500)}">${girl}</div>
         <button class="room-hot room-girlbtn" ${o.hasWip ? 'data-act="continue"' : 'type="button"'} style="${box(472, 404, 176, 454)}" aria-label="${o.hasWip ? 'להמשיך' : 'הדמות שלי'}">${o.hasWip ? tag(ico('play') + 'להמשיך', 'purple', off(88, 456)) : ''}</button>
