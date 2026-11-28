@@ -388,7 +388,7 @@
       setTimeout(() => p.remove(), 950);
     }
     function showStreet(name, plain) { // plain: a name that is not a street (data.streets: [s, name, true])
-      const txt = plain || /^(שדרות|בית|רחוב)/.test(name) ? name : 'רחוב ' + name;
+      const txt = plain || /^(שדרות|בית|רחוב|גן|גני|גינת|פארק|כיכר|טיילת) /.test(name + ' ') ? name : 'רחוב ' + name; // a garden, a park or a square is not a street
       streetEl.textContent = txt; streetEl.classList.remove('on'); void streetEl.offsetWidth; streetEl.classList.add('on');
     }
     function fade(to, ms) {

@@ -86,6 +86,10 @@
 
    6. ride-world.js builds from any data of that shape: what belongs to the school and to our house is built
       only when the data has data.school / data.house; world.info.gate comes from data.end || data.school.
+      The data may tell the world more about its way (all optional; the list is at the top of ride-world.js):
+      roadEnd (where the car streets end and the bike paths begin), humps, blvd, kiosk, keep (clearings for a
+      welcome scene), Templer houses (buildings of kind 't'), a river (an area of kind 'river').
+      ride-data-sarona.js / ride-place-sarona.js and the two files of Yarkon Park are worked examples of a city place.
    ============================================================================================== */
 (function () {
   'use strict';
@@ -96,8 +100,8 @@
      so the first place opens within one sitting and Dinosaur City, the dearest thing in the game, after a few. */
   PL.LIST = [
     { id: 'school', name: 'בית הספר', price: 0, kind: 'city', files: ['js/ride-data.js'], ready: true },
-    { id: 'sarona', name: 'שרונה', price: 500, kind: 'city', files: ['js/ride-data-sarona.js', 'js/ride-place-sarona.js'], ready: false },
-    { id: 'yarkon', name: 'פארק הירקון', price: 1000, kind: 'city', files: ['js/ride-data-yarkon.js', 'js/ride-place-yarkon.js'], ready: false },
+    { id: 'sarona', name: 'שרונה', price: 500, kind: 'city', files: ['js/ride-data-sarona.js', 'js/ride-place-sarona.js'], ready: true },
+    { id: 'yarkon', name: 'פארק הירקון', price: 1000, kind: 'city', files: ['js/ride-data-yarkon.js', 'js/ride-place-yarkon.js'], ready: true },
     { id: 'dino', name: 'עיר הדינוזאורים', price: 3000, kind: 'sky', files: ['js/ride-data.js', 'js/ride-sky.js', 'js/ride-sky-models.js', 'js/ride-sky-scene.js', 'js/ride-sky-city.js', 'js/ride-sky-world.js', 'js/ride-place-dino.js'], ready: true },
   ];
   PL.HOME = 'school'; // always hers, always there
@@ -183,25 +187,29 @@
         for (let i = 1; i < 4; i++) t += ln(`M${n(x - 9 + i * 7)} ${n(y - i * (y - top) / 4.6)}H${n(x + w + 9 - i * 7)}`, '#fff', 1.2, 'stroke-opacity=".3"');
         const wn = (wx, wy) => re(wx, wy, 12, 17, '#9fd0ea', 'rx="6"') + re(wx - 6, wy + 2, 6, 15, sh, 'rx="1.500"') + re(wx + 12, wy + 2, 6, 15, sh, 'rx="1.500"');
         t += wn(x + w * 0.2 - 6, y + 14) + wn(x + w * 0.8 - 6, y + 14);
-        t += pa(`M${n(x + w / 2 - 8)} ${y + h}V${y + h - 26}A8 8 0 0 1 ${n(x + w / 2 + 8)} ${y + h - 26}V${y + h}Z`, '#b0805a') + ci(x + w / 2 + 4, y + h - 13, 1.4, '#ffd24d');
+        t += pa(`M${n(x + w / 2 - 8)} ${y + h}V${y + h - 26}A8 8 0 0 1 ${n(x + w / 2 + 8)} ${y + h - 26}V${y + h}Z`, '#5fa56b') + ln(`M${n(x + w / 2)} ${y + h}V${y + h - 33}`, '#4a8c58', 1.2) + ci(x + w / 2 + 3, y + h - 13, 1.4, '#ffd24d');
         return t;
       };
-      s += house(52, 150, 92, 54, false, '#7fb7a5') + re(120, 118, 9, 20, '#ecd9b8') + house(232, 142, 118, 62, true, '#8fa9c9');
-      // the lawn, a path, a picnic, flags between the houses
+      s += house(52, 150, 92, 54, false, '#5fa56b') + re(120, 118, 9, 20, '#ecd9b8') + house(232, 142, 118, 62, true, '#5fa56b'); // green shutters and doors, as on the real houses
+      // the lawn, a path, the lily pond with its little bridge, flags between the houses
       s += pa('M0 208Q120 194 220 202T400 198V300H0Z', '#a2df8c') + pa('M0 246Q130 226 250 240T400 232V300H0Z', '#93d67c', 'fill-opacity=".6"');
       s += pa('M176 204Q210 232 168 262Q150 280 168 300H232Q206 280 226 262Q262 228 212 204Z', '#fbeccb');
       let bun = '';
       const BUNT = ['#ff8fc0', '#ffd54d', '#7de3e0', '#b99cff', '#ff9d4d'];
       for (let i = 0; i < 8; i++) { const t = (i + 0.5) / 8, x = 150 + t * 78, y = 140 + Math.sin(t * Math.PI) * 14; bun += pa(`M${n(x - 4.500)} ${n(y)}h9l-4.500 9Z`, BUNT[i % 5]); }
       s += ln('M150 140Q189 168 228 140', '#c9b3a0', 1.2) + bun;
-      s += pa('M286 240l44 -8l12 26l-46 9Z', '#fff') + pa('M286 240l22 -4l5 13.500l-22 4ZM313 249.500l22 -4.500l7 12.500l-23 5Z', '#ff8fa8') + pa('M312 232h18l-3 14h-12Z', '#e0a868') + ln('M313 232Q321 220 329 232', '#c98f4e', 2);
-      s += ci(300, 262, 4, '#ff6b6b') + ci(307, 264, 3.4, '#ffd54d');
+      let pond = el(312, 256, 50, 19, '#f1e8d4') + el(312, 256, 45, 15, '#8fd6f2') + el(312, 258, 27, 8, '#6cc4e8', 'fill-opacity=".7"');
+      pond += el(284, 257, 6.500, 2.800, '#7fcf88') + el(341, 252, 5.500, 2.400, '#7fcf88') + el(336, 263, 5, 2.200, '#8fd9a0') + ci(284, 255.500, 2.600, '#ff9fc4') + ci(342, 250.500, 2.200, '#fff') + ci(336, 261.500, 2, '#ff9fc4');
+      pond += ln('M290 270Q312 240 334 270', '#c9976b', 5.500) + ln('M290 262Q312 232 334 262', '#a97b52', 1.800) + ln('M297 255V263M312 247V255M327 255V263', '#a97b52', 1.800);
+      pond += ln('M268 252V238M273 254V242M356 250V236M361 252V241', '#6cc494', 2) + el(268, 236, 2, 5, '#b98f72') + el(356, 234, 2, 5, '#b98f72');
+      s += `<g transform="translate(-14 -17)">${pond}</g>`; // (inside the middle of the card, which is all a small screen shows)
       s += tree(92, 262, 50, '#6cc494', '#8fd9b0');
-      [[40, 262, '#fff'], [140, 282, '#ffe08a'], [256, 284, '#ff9fc4'], [366, 264, '#fff'], [64, 288, '#ff9fc4'], [352, 288, '#ffe08a']].forEach(([x, y, c]) => (s += ci(x, y, 4.500, c) + ci(x, y, 1.8, c === '#ffe08a' ? '#ff9f5c' : '#ffd24d')));
+      [[40, 262, '#fff'], [140, 282, '#ffe08a'], [256, 288, '#ff9fc4'], [378, 270, '#fff'], [64, 288, '#ff9fc4'], [352, 290, '#ffe08a']].forEach(([x, y, c]) => (s += ci(x, y, 4.500, c) + ci(x, y, 1.8, c === '#ffe08a' ? '#ff9f5c' : '#ffd24d')));
       return s;
     },
 
-    /* Yarkon Park: the river with a boat on it, tall trees, the balloon over the park */
+    /* Yarkon Park: the river with the swan boat and a pedal boat on it, a wooden bridge, tall trees, kites,
+       a picnic on the lawn, the balloon over the park */
     yarkon(u) {
       let s = `<defs>${lg(u + 's', [[0, '#8fd3ff'], [1, '#e9f8ff']])}${lg(u + 'w', [[0, '#8ed6f2'], [1, '#5fb9e3']])}</defs>` + re(0, 0, 400, 300, `url(#${u}s)`);
       s += ci(60, 48, 38, '#fff6c4', 'fill-opacity=".55"') + ci(60, 48, 22, '#fff3a8') + cloud(168, 44, 17, '#fff', 0.9) + cloud(350, 78, 14, '#fff', 0.8);
@@ -210,7 +218,10 @@
       s += pa('M0 160h40v-12h30v-18h22v24h40v-14h28v20h80v-16h30v-12h24v22h40v-10h36v16h30V200H0Z', '#d7e6fb', 'fill-opacity=".8"');
       s += pa('M0 176Q90 156 200 168T400 160V300H0Z', '#b6e8a2');
       // a little bridge far away
-      s += ln('M150 178Q200 156 250 178', '#e9c79a', 6) + ln('M150 171Q200 149 250 171', '#fff', 2.5) + ln('M166 166V174M183 161V169M200 159V167M217 161V169M234 166V174', '#fff', 2);
+      s += ln('M150 178Q200 156 250 178', '#c9976b', 6) + ln('M150 171Q200 149 250 171', '#a97b52', 2.2) + ln('M166 166V174M183 161V169M200 159V167M217 161V169M234 166V174', '#a97b52', 2);
+      // kites over the lawn, on their strings
+      const kite = (x, y, k, c, c2, tx, ty) => ln(`M${x} ${n(y + 12 * k)}Q${n((x + tx) / 2 + 8)} ${n((y + ty) / 2 + 14)} ${tx} ${ty}`, '#fff', 1, 'stroke-opacity=".85"') + pa(`M${x} ${n(y - 13 * k)}L${n(x + 9 * k)} ${y}L${x} ${n(y + 13 * k)}Z`, c) + pa(`M${x} ${n(y - 13 * k)}L${n(x - 9 * k)} ${y}L${x} ${n(y + 13 * k)}Z`, c2) + ln(`M${x} ${n(y + 13 * k)}q${n(5 * k)} ${n(6 * k)} ${n(-1 * k)} ${n(12 * k)}q${n(-5 * k)} ${n(6 * k)} ${n(2 * k)} ${n(11 * k)}`, c, 1.6);
+      s += kite(128, 88, 1, '#ff6b6b', '#ffd54d', 96, 212) + kite(226, 96, 0.8, '#b99cff', '#ff8fc0', 340, 214);
       // the river
       s += pa('M172 178Q230 196 196 220Q140 252 176 300H360Q296 262 316 232Q336 198 232 178Z', `url(#${u}w)`);
       s += ln('M212 196q10 -3 20 0M196 226q14 -4 28 0M250 246q14 -4 28 0M214 276q16 -5 32 0M286 286q12 -3 24 0', '#fff', 2.2, 'stroke-opacity=".7"');
@@ -220,9 +231,15 @@
       s += euc(52, 206, 0.8, '#7fcf88', '#98dc9c') + euc(360, 204, 0.82, '#7fcf88', '#98dc9c') + euc(106, 196, 0.5, '#8fd9a0', '#aee5b4') + euc(304, 190, 0.46, '#8fd9a0', '#aee5b4');
       s += pa('M0 224Q70 206 138 222Q110 262 140 300H0Z', '#a2df8c') + pa('M400 214Q352 206 338 226Q326 262 388 300H400Z', '#a2df8c');
       s += euc(24, 284, 1.18, '#6cc494', '#8fd9b0');
-      // the boat
-      s += el(238, 250, 40, 5, '#3f8fc0', 'fill-opacity=".35"') + pa('M200 234H276Q270 250 258 250H216Q204 250 200 234Z', '#ff6f91') + pa('M200 234H276L274 239H202Z', '#fff') + ln('M238 234V200', '#b98f72', 2.6) + pa('M240 202L262 212L240 222Z', '#ffd54d');
-      s += ln('M222 240L196 256M254 240L282 256', '#e0a868', 2.6) + el(194, 257, 5, 2.5, '#e0a868') + el(284, 257, 5, 2.5, '#e0a868') + ci(226, 230, 5, '#ffd9c2') + pa('M220 234q6 -5 12 0v2h-12Z', '#8b6cf0') + pa('M220.500 229a5.500 5.500 0 0 1 11 0Z', '#ff9d4d');
+      // a picnic on the lawn
+      s += pa('M58 250l42 -7l11 23l-44 8Z', '#fff') + pa('M58 250l21 -3.500l5 12l-21 4ZM84 258.500l21 -4l6 11.500l-22 4Z', '#ff8fa8') + pa('M82 242h17l-3 13h-11Z', '#e0a868') + ln('M83 242Q90.500 231 98 242', '#c98f4e', 2) + ci(72, 270, 3.600, '#ff6b6b') + ci(78, 272, 3, '#ffd54d');
+      // a pedal boat with a striped roof, further up the river
+      s += el(232, 213, 17, 2.600, '#3f8fc0', 'fill-opacity=".3"') + pa('M217 204H247Q245 213 239 213H225Q219 213 217 204Z', '#ffd54d') + pa('M217 204H247L246 207H218Z', '#fff') + ln('M221 204V193M243 204V193', '#fff', 1.400) + re(218, 190, 28, 4, '#fff', 'rx="1.500"') + re(218, 190, 5.600, 4, '#ff8fc0') + re(229.200, 190, 5.600, 4, '#ff8fc0') + re(240.400, 190, 5.600, 4, '#ff8fc0') + ci(228, 200, 2.800, '#ffd9c2') + ci(236, 200, 2.800, '#e0a878');
+      // the swan boat, with two children in it
+      s += el(240, 257, 44, 5.500, '#3f8fc0', 'fill-opacity=".35"');
+      s += ln('M270 244Q292 232 280 212Q274 202 284 197', '#fff', 8.500) + ci(286, 197, 7, '#fff') + pa('M291 194.500l11 3.500l-11 3Z', '#ff9d4d') + ci(288, 195.500, 1.200, '#4b3564') + ci(284, 200, 2, '#ffc2d6', 'fill-opacity=".8"');
+      s += ci(232, 233, 5.500, '#ffd9c2') + pa('M226.500 232a5.500 5.500 0 0 1 11 0Z', '#ff9d4d') + ci(248, 233, 5.500, '#e0a878') + pa('M242.500 232a5.500 5.500 0 0 1 11 0Z', '#5a3c2a') + pa('M225 238q7 -5 14 0v6h-14Z', '#8b6cf0') + pa('M241 238q7 -5 14 0v6h-14Z', '#63c98a');
+      s += pa('M202 240Q202 258 222 258H262Q278 258 280 242Q262 236 240 238Q216 236 202 240Z', '#fff') + pa('M206 246Q220 232 250 242Q240 256 216 254Z', '#eaf2fa') + pa('M202 240Q196 234 190 238Q198 240 204 248Z', '#fff');
       // ducks, lily pads, reeds
       const duck = (x, y, k) => el(x, y, 7 * k, 4.500 * k, '#fff') + ci(x + 6 * k, y - 4.500 * k, 3.4 * k, '#fff') + pa(`M${n(x + 9 * k)} ${n(y - 4.500 * k)}l${n(4 * k)} ${n(1 * k)}l${n(-4 * k)} ${n(1.500 * k)}Z`, '#ff9d4d') + ci(x + 7 * k, y - 5.200 * k, 0.7 * k, '#4b3564');
       s += duck(296, 272, 1) + duck(312, 280, 0.7) + duck(214, 208, 0.6);

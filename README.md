@@ -62,8 +62,10 @@ up to five bikes. Some parts cost stars; she can try them on the bike before buy
 | File | What it holds |
 |---|---|
 | `js/ride-data.js` | the way to school: the streets, buildings, parks and the route, baked from OpenStreetMap (metres; x east, z south) |
+| `js/ride-data-sarona.js`, `js/ride-data-yarkon.js` | the ways to Sarona (1.4 km) and to Yarkon Park (2.2 km), baked the same way (`DU.RIDE_DATA_OF.sarona` / `.yarkon`); besides the route they say where the car streets end, where the raised crossings are, and where the welcome scene needs a clearing |
+| `js/ride-place-sarona.js`, `js/ride-place-yarkon.js` | the two places themselves (`DU.RIDE_PLACE.sarona` / `.yarkon`): texts, icon, arrival sound, a level made for each way, and the welcome scene. The pieces of the scenes are in the same files (`DU.rideScene.sarona.make(kind)`: Templer houses, the lily pond, a lawn, bunting, an arch; `DU.rideScene.yarkon.make(kind)`: pedal boats, ducks, reeds, picnics, kites, eucalyptus trees, the tethered balloon, a wooden bridge) |
 | `js/ride-kit.js` | shared 3D helpers: palette, painted primitives merged into one mesh, signs with text, the route maths (with heights, for a way that climbs) |
-| `js/ride-world.js` | builds the city from the baked data of a place: roads, buildings, trees, signs, sky, light |
+| `js/ride-world.js` | builds the city from the baked data of a place: roads, buildings (also the old Templer houses with their tiled roofs), a river, trees, signs, sky, light |
 | `js/ride-bike.js` | her bike in 3D, built from her design: frames, paints, wheels, basket, streamers, flag; and what she leaves behind her on the road |
 | `js/ride-rider.js` | the girl as a paper doll on that bike (a back view of her is drawn by `render.js`) |
 | `js/ride-models.js` | stars, cones, pigeons, cats, cars, people, traffic lights |
