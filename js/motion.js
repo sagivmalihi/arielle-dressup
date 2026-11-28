@@ -1,6 +1,9 @@
 /* motion.js — moving a rigged character (DU.renderCard(state, { rig: true })) and small effects.
    Parts are moved by writing the SVG `transform` attribute (not CSS), so it behaves the same in
-   every browser. Each [data-part] group has its own origin at the joint, so "rotate(20)" just works. */
+   every browser. Each [data-part] group has its own origin at the joint, so "rotate(20)" just works.
+     DU.pose(root, pose, ms)    arms, head and lean · DU.strike(root, pose, o)  the same with her face, a hop, sparkles
+     DU.POSES / DU.POSE_LIST    the poses, and the ones she can choose from (with Hebrew names)
+     DU.safePose / DU.freePose  a pose for a girl whose hands are full */
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
@@ -76,6 +79,7 @@
   const cur = new WeakMap(); // root → current numbers
   const leanOf = new WeakMap(); // root → how far she leans now; only roots that were ever asked to lean are in it
   const hopping = new WeakSet(); // roots in the middle of a hop (the hop writes the 'all' part then)
+  const upright = new WeakSet(); // roots whose 'front' part (the pet or the thing that stands next to her) does not lean with her
   const zero = () => ({ lr: 0, lb: 0, rr: 0, rb: 0, h: 0, ln: 0 });
   const nums = (p) => ({ lr: (p.armL || [0, 0])[0], lb: (p.armL || [0, 0])[1], rr: (p.armR || [0, 0])[0], rb: (p.armR || [0, 0])[1], h: p.head || 0, ln: p.lean || 0 });
   function applyPose(root, v) {
@@ -90,6 +94,7 @@
     if (leanOf.has(root)) { // a girl who never leans is never touched here: the 'all' part stays with whoever moves it
       leanOf.set(root, v.ln || 0);
       if (!hopping.has(root)) M.set(root, 'all', v.ln ? `rotate(${n(v.ln)})` : '');
+      if (upright.has(root)) M.set(root, 'front', v.ln ? `rotate(${n(-v.ln)} 375 950)` : ''); // 375 950: her feet (rig.js)
     }
   }
   /* move to a pose (name or object) in ms milliseconds. → Promise */
@@ -194,10 +199,13 @@
   /* ---------- strike a pose, with everything it has ----------
      Arms, head and lean move as in DU.pose; her face changes with it (pose.eyes / pose.mouth, or back to her own);
      she hops if the pose has a hop; a burst of stars or hearts opens around her head if it has an fx.
-     o = { ms, fxHost (a positioned element for the burst), quiet: true = no hop and no burst (just trying it on) } → Promise */
+     o = { ms, fxHost (a positioned element for the burst), quiet: true = no hop and no burst (just trying it on),
+           upright: true = what stands next to her (a pet, a snowman) stays straight when she leans. Not for a girl with
+           the parrot: it is drawn in the same part, and has to stay on her shoulder } → Promise */
   DU.strike = function (root, pose, o = {}) {
     if (typeof pose === 'string') pose = DU.POSES[pose] || {};
     pose = pose || {};
+    if (o.upright) upright.add(root); else if (upright.delete(root)) M.set(root, 'front', '');
     const done = DU.pose(root, pose, o.ms == null ? 380 : o.ms);
     DU.setEyes(root, pose.eyes); DU.setMouth(root, pose.mouth);
     if (o.quiet || M.reduced()) return done;

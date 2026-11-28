@@ -10,7 +10,8 @@
      DU.school.open({ host, state, onExit })   the screen is put into host; state = her character
                                                (seed: a number, for tests: the same classmates every time)
      DU.school.close()
-     DU.school.classmates(n, state, seed)       → [{ name, title, theme, state }] (a seed repeats the same class)
+     DU.school.classmates(n, state, seed, last) → [{ name, title, theme, state }] (a seed repeats the same class;
+                                               last = the class before, so its names and themes do not come back at once)
 
    Every size in school.css is in --u: 1% of the width of the 4:3 hall (wall and floor bleed past it).
    A tap on the hall hurries the parts that play by themselves. */
@@ -60,6 +61,9 @@
   const FUN_HAIR = ['#ff9ac1', '#e35d9b', '#b48cff', '#7b5bd6', '#5cc8ff', '#59d6b5', '#f4f1ff'];
   /* things that keep the colour they were drawn with: fur, fruit, toys */
   const KEEP = /ears|tail|parrot|orange|teddy|bunny|bear|hood|strawberry|flowerpot/;
+  const ANIMAL = /ears|tail|ha_bunny/; // animal ears and tails to put on
+  const SETS = [['ha_catears', 'wg_cattail'], ['ha_foxears', 'wg_foxtail']];
+  const SISTERS = [['school', 'british'], ['beach', 'hawaii']]; // themes too much alike to stand in one show
   const ACC = [['head', 0.9], ['hand', 0.7], ['necklace', 0.6], ['earrings', 0.5], ['bag', 0.42], ['bracelet', 0.4], ['wings', 0.34], ['side', 0.3], ['glasses', 0.22]];
 
   /* a small seeded generator (mulberry32), so a test can ask for the same class again */
@@ -79,12 +83,13 @@
   }
   const nearest = (list, hex) => { const a = rgb(hex); let best = list[0], bd = 1e9; list.forEach((c) => { const b = rgb(c), dd = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2; if (dd < bd) { bd = dd; best = c; } }); return best; };
 
-  /* one design: theme T on base girl g (or a special character), with the random source r */
-  function design(T, g, r) {
+  /* one design: theme T on base girl g (or a special character), with the random source r.
+     taken = item ids the other classmates of this show already wear: she takes something else when she can */
+  function design(T, g, r, taken) {
     const pick = (a) => a[Math.floor(r() * a.length)], chance = (p) => r() < p;
     const L = LOOKS[T.id] || LOOKS.party;
     const pal = pick(L.p).split(' ').map((c) => '#' + c), [main, second, accent] = pal;
-    const of = (slot) => DU.items.filter((it) => it.slot === slot && it.tags.includes(T.id));
+    const of = (slot) => { const l = DU.items.filter((it) => it.slot === slot && it.tags.includes(T.id)), f = l.filter((it) => !taken[it.id]); return f.length ? f : l; };
     const s = DU.defaultState();
     Object.assign(s, { base: g.id, skin: g.skin, face: g.face, eyes: Object.assign({}, g.eyes), brows: g.brows, mouth: pick(['smile', 'big', 'grin', g.mouth, g.mouth]), hair: Object.assign({}, g.hair) });
     if (g.kind) { s.kind = g.kind; s.body = Object.assign({}, g.body); } else s.body = { h: pick([-1, 0, 0, 1]), m: chance(0.12) ? 1 : 0 };
@@ -130,13 +135,19 @@
         if (k === 'head' ? wear.hat || wear.hairacc : wear[k]) continue;
         if ((k === 'hand' && wear.bag) || (k === 'bag' && wear.hand)) continue;
         if (pass === 0 && !chance(p)) continue;
-        const list = k === 'head' ? of('hat').concat(of('hairacc')) : of(k);
+        let list = k === 'head' ? of('hat').concat(of('hairacc')) : of(k);
+        if (g.kind) list = list.filter((it) => !ANIMAL.test(it.id)); // a wolf has ears and a tail of her own
         if (!list.length) continue;
         const it = pick(list);
         wear[it.slot] = tint(it, role[k]());
         count++;
       }
     }
+    /* cat ears go with a cat's tail and fox ears with a fox's: never the ears of one and the tail of another */
+    SETS.forEach(([ears, tail]) => {
+      if (wear.wings && wear.wings.id === tail) { delete wear.hat; wear.hairacc = { id: ears }; }
+      else if (wear.hairacc && wear.hairacc.id === ears && !wear.wings && chance(0.5)) wear.wings = { id: tail };
+    });
     s.wear = wear;
 
     /* hair: a style of the theme; her own colour, or a fantasy one where it suits */
@@ -160,28 +171,31 @@
   }
 
   /* n classmates for one show: n themes, n different girls (not hers, when possible), no two outfits alike,
-     and in about half the shows one of them is a special character */
-  function classmates(count, hero, seed) {
+     and in about half the shows one of them is a special character.
+     last = the classmates of the show before: their names, themes and girls rest for a round */
+  function classmates(count, hero, seed, last) {
     const r = seed == null ? Math.random : rng(seed);
     const pick = (a) => a[Math.floor(r() * a.length)];
     const shuffle = (a) => a.map((x) => [x, r()]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
-    hero = hero || {};
-    const themes = shuffle(DU.THEMES.filter((t) => LOOKS[t.id])).slice(0, count);
-    let girls = shuffle(DU.GIRLS.filter((g) => g.id !== hero.base));
+    const fresh = (list, used, key) => { const l = list.filter((x) => !used.includes(key ? x[key] : x)); return l.length >= count ? l : list; };
+    hero = hero || {}; last = last || [];
+    const themes = [], near = (a, b) => SISTERS.some((p) => p.includes(a.id) && p.includes(b.id));
+    shuffle(fresh(DU.THEMES.filter((t) => LOOKS[t.id]), last.map((m) => m.theme), 'id')).forEach((t) => { if (themes.length < count && !themes.some((x) => near(x, t))) themes.push(t); });
+    let girls = shuffle(fresh(DU.GIRLS.filter((g) => g.id !== hero.base), last.map((m) => m.state.base), 'id'));
     if (girls.length < count) girls = girls.concat(shuffle(DU.GIRLS));
     const own = (hero.name || '').trim();
-    const names = shuffle(NAMES.filter((x) => x !== own));
+    const names = shuffle(fresh(NAMES.filter((x) => x !== own), last.map((m) => m.name)));
     const specials = (DU.SPECIALS || []).filter((x) => x.kind && x.kind !== hero.kind && x.id !== hero.base);
     const spAt = specials.length && r() < 0.5 ? Math.floor(r() * count) : -1;
-    const out = [], seen = {};
+    const out = [], taken = {};
     themes.forEach((T, i) => {
       const g = i === spAt ? pick(specials) : girls[i];
       let d = null;
       for (let k = 0; k < 6; k++) { // try again if her main garment is already in this show
-        d = design(T, g, r);
-        const key = (d.state.wear.dress || d.state.wear.top).id;
-        if (!seen[key]) { seen[key] = 1; break; }
+        d = design(T, g, r, taken);
+        if (!taken[(d.state.wear.dress || d.state.wear.top).id]) break;
       }
+      Object.keys(d.state.wear).forEach((slot) => (taken[d.state.wear[slot].id] = 1));
       d.name = names[i % names.length];
       d.state.name = d.name;
       out.push(d);
@@ -394,10 +408,17 @@
   }
 
   /* ================= the screen ================= */
-  /* where things are, in u (1% of the hall's width) */
-  const FEET = 50, BOX_W = 33, BOX_H = 44; // a girl on the stage: her feet, and the box she is drawn in
+  /* where things are, in u (1% of the hall's width); the box a girl is drawn in is in school.css (.sc-fig) */
+  const FEET = 50; // the feet of a girl on the stage
   const SPOT_S = 0.6, SPOT_Y = 61.6; // a classmate who stands by the stage: how small, and where her feet are
   const SPOT_X = [82.4, 17.6, 93, 7]; // the first one stands right of the stage, the next one left of it…
+  /* a pose as this girl can strike it: with full hands (DU.freePose), and, if a pet stands next to her while the parrot
+     sits on her shoulder, without the lean (the two are drawn in one part: the pet would tip over with her) */
+  const poseOf = (st, id) => {
+    const p = DU.freePose(st, id), w = st.wear || {};
+    if (w.side && w.wings && w.wings.id === 'wg_parrot') p.lean = 0;
+    return p;
+  };
   const dollColours = (st) => {
     const hex = (c) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : null);
     const w = st.wear || {}, main = w.dress || w.top, it = main && DU.itemById[main.id];
@@ -552,7 +573,7 @@
     }
     const face = (f, eyes, mouth) => { DU.setEyes(f, eyes); DU.setMouth(f, mouth); };
     const hop = (f, h, ms) => { if (!fast && !reduced) M.hop(f, h, ms); };
-    const strike = (f, pose, ms = 400, quiet) => DU.strike(f, DU.freePose(f._state, pose), { ms: T(ms), fxHost: fx, quiet: quiet || fast });
+    const strike = (f, pose, ms = 400, quiet) => DU.strike(f, poseOf(f._state, pose), { ms: T(ms), fxHost: fx, quiet: quiet || fast, upright: !!(f._state.wear || {}).side });
     const rest = (f, ms = 300) => { DU.pose(f, 'rest', T(ms)); face(f); };
     const burst = (f, opts) => { if (fast || reduced) return; const [x, y] = at(f, 0.5, 0.36); DU.fx.burst(fx, x, y, opts); };
     /* she steps from the back of the stage to the front, swinging her arms a little (they stay low: her hands may be full) */
@@ -620,6 +641,7 @@
       await walkIn(f);
       mate.up = headUp(f);
       strike(f, mate.pose, 420);
+      if (/^(calm|happy)$/.test(DU.POSES[mate.pose].eyes || '')) later(T(1200), () => { if (rated[i] == null) DU.setEyes(f); }); // her eyes are part of the design: she opens them again
       if (!fast) SFX.chime(i * 2 - 2);
       plaque.innerHTML = `<b>${esc(mate.name)}</b><i></i><span>${esc(mate.title)}</span>`;
       plaque.classList.add('is-on');
@@ -639,9 +661,9 @@
       /* she is glad whatever she got: more stars, a bigger party, and never a sad face */
       say(stageSay, THANKS[k][Math.floor(Math.random() * THANKS[k].length)]);
       face(f, 'happy', k >= 3 ? 'big' : 'smile');
-      if (k >= 4) { DU.pose(f, DU.freePose(mate.state, 'jump'), T(320)); hop(f, k === 5 ? 34 : 24, 480); burst(f, { count: k === 5 ? 18 : 12, spread: 20, size: 3.4 }); }
-      else if (k === 3) { DU.pose(f, DU.freePose(mate.state, 'hello'), T(320)); hop(f, 16, 420); burst(f, { count: 7, spread: 14, size: 2.8 }); }
-      else { DU.pose(f, DU.freePose(mate.state, 'hello'), T(320)); burst(f, { shape: 'heart', count: 5, spread: 11, size: 2.6, colors: ['#ff8fc0', '#ffc1d9', '#ffffff'] }); }
+      if (k >= 4) { DU.pose(f, poseOf(mate.state, 'jump'), T(320)); hop(f, k === 5 ? 34 : 24, 480); burst(f, { count: k === 5 ? 18 : 12, spread: 20, size: 3.4 }); }
+      else if (k === 3) { DU.pose(f, poseOf(mate.state, 'hello'), T(320)); hop(f, 16, 420); burst(f, { count: 7, spread: 14, size: 2.8 }); }
+      else { DU.pose(f, poseOf(mate.state, 'hello'), T(320)); burst(f, { shape: 'heart', count: 5, spread: 11, size: 2.6, colors: ['#ff8fc0', '#ffc1d9', '#ffffff'] }); }
       if (k === 5) { later(T(260), () => { if (!fast) { SFX.clap(); burst(f, { shape: 'heart', count: 10, spread: 24, size: 3.2 }); } }); confetti(); }
       await wait(1500, true);
       say(stageSay, '', false);
@@ -667,7 +689,6 @@
     async function herTurn() {
       work();
       const f = figure(hero);
-      f.classList.add('is-hero');
       owl.classList.remove('is-talk'); void owl.offsetWidth; owl.classList.add('is-talk');
       root.classList.add('sc-turn-on');
       ringBell();
@@ -684,7 +705,7 @@
       const cols = dollColours(hero);
       pick.innerHTML = `<div class="sc-ask sc-hint">בחרי איך לעמוד</div>${okBtn}`;
       pick.classList.add('is-on');
-      band.innerHTML = `<div class="sc-poses">${okBtn}<div class="sc-panel sc-pose-grid">${DU.POSE_LIST.map((p) => `<button class="sc-pose" data-sc="pose" data-id="${p.id}">${doll(DU.freePose(hero, p.id), cols)}<span>${esc(p.name)}</span></button>`).join('')}</div></div>`;
+      band.innerHTML = `<div class="sc-poses">${okBtn}<div class="sc-panel sc-pose-grid">${DU.POSE_LIST.map((p) => `<button class="sc-pose" data-sc="pose" data-id="${p.id}">${doll(poseOf(hero, p.id), cols)}<span>${esc(p.name)}</span></button>`).join('')}</div></div>`;
       calm();
       let chosen = null;
       await tapFor({
@@ -726,7 +747,7 @@
         cards.push(card);
         if (!fast) { if (V.ok) SFX.pop(k * 2); else SFX.soft(k === 1 ? -2 : k * 2); }
         face(m.fig, 'happy', 'big');
-        DU.pose(m.fig, DU.freePose(m.state, V.ok ? 'jump' : 'hello'), T(300));
+        DU.pose(m.fig, poseOf(m.state, V.ok ? 'jump' : 'hello'), T(300));
         hop(m.fig, V.ok ? 20 : 12, 420);
         const bub = sp.querySelector('.sc-mate-say');
         say(bub, V.say[k]);
@@ -788,7 +809,12 @@
     async function run() {
       await hello();
       for (;;) {
-        mates = classmates(CLASS_SIZE, hero, o.seed == null ? undefined : o.seed + shows);
+        mates = classmates(CLASS_SIZE, hero, o.seed == null ? undefined : o.seed + shows, mates);
+        /* a pet or a thing stands at her right: the third girl stands at the right edge of the hall, where it
+           could be cut off, so the girls who brought one take the other places first */
+        const places = [1, 3, 0, 2].filter((i) => i < mates.length), placed = [];
+        mates.filter((m) => m.state.wear.side).concat(mates.filter((m) => !m.state.wear.side)).forEach((m, k) => (placed[places[k]] = m));
+        if (places.length === mates.length) mates = placed;
         mates.forEach((m) => (m.pose = DU.POSE_LIST[Math.floor(Math.random() * DU.POSE_LIST.length)].id));
         const rated = [], before = earned;
         work();
