@@ -420,11 +420,18 @@
     shadow(grp, 0.3 * sc, 0.4 * sc, 0.22);
     u.r = 0.32 * sc; u.h = 0.95 * sc; u.size = sc;
     const live = alive(grp, u, { head, eyes, bothArms: arms, hop: all, hopH: 0.22 * sc, headYaw: 1.0 }, seed, o);
-    let ph = seed * 1.3, amp = 0, walked = false;
+    let ph = seed * 1.3, amp = 0, walked = false, md = 'sit', hopT = 0;
     /* walk(dt, speed): step along; call it every frame while the game moves it */
     u.walk = function (dt, speed) { const s = Math.abs(speed || 0); ph += dt * s * 9; amp = damp(amp, Math.min(1, s / 0.8), 8, dt); walked = true; };
-    u.bump = function () { u.cheer(true); u.bumped = true; setTimeout(() => u.cheer(false), 900); };
+    /* mode('walk' | 'sit') and userData.speed: the way the game moves a cat that crosses the road; a baby crosses like one */
+    u.speed = 1.9;
+    u.mode = function (m) { md = m === 'walk' ? 'walk' : 'sit'; };
+    /* turn(rad): it faces that way inside its own group (for whoever moves the group without turning it the right way) */
+    u.turn = function (rad) { all.rotation.y = rad; };
+    u.bump = function () { u.cheer(true); u.bumped = true; hopT = 0.9; }; // it is not hurt: it hops and laughs
     u.update = function (dt, t) {
+      if (md === 'walk') u.walk(dt, u.speed);
+      if (hopT > 0 && (hopT -= dt) <= 0) u.cheer(false);
       live(dt, t);
       if (!walked) amp = damp(amp, 0, 8, dt);
       walked = false;
@@ -702,7 +709,7 @@
      trex · trike · stego        look(x, y, z) (its head follows a place in the world; look() = lets go), wave(secs) (trex), cheer(on)
      bronto                      the same; opts.leaf (it chews a branch); userData.headY / headZ = where its head is
      ptero                       opts.y (how high), opts.shadow: false (high in the air), userData.flap 0…1
-     baby                        walk(dt, speed), cheer(on), bump(), look(); opts.shell
+     baby                        walk(dt, speed), or mode('walk' | 'sit') + userData.speed (it crosses like the game's cat); turn(rad); cheer(on), bump(), look(); opts.shell
      unicorn                     gallop(dt, speed) (= walk), look(); opts.wings
      egg                         bump(side), hatch() → userData.hatched, reset(); opts.nest
      puff                        bump(), pop() → userData.gone, reset(); userData.soft

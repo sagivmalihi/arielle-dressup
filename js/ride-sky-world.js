@@ -9,6 +9,8 @@
        world.info                       { meshes, tris, buildMs, city: the real city's info, gate, finish, square, deck, … }
        world.parkOk(s, side)            cars may be parked along her street only before the ramp
        world.group                      the Group with everything of the sky in it
+       world.gates                      the big rainbow rings she rides through: [{ s, obj }] (obj.userData.pass() makes one flash)
+       world.hello(s)                   she rang her bell at s: who is near waves and hops → how many answered for the first time
        world.heightAt(s)                the height of the road
        world.at(s, lat, up, out)        a point beside the road → out { x, y, z, ry (the way the road runs), pitch }
 
@@ -378,7 +380,7 @@
 
     /* ---------- the scenery of each stretch (ride-sky-scene.js) ---------- */
     const movers = []; // { s, r, back, obj, still, update(dt, t, sNow, camera, rider) } — the things that move; only those near her are shown and moved
-    const kit = { T, K, data, DECK, L, M, PIERCE, HALF, low, C, mix, at, altAt, nearWay, skyAt, soupAt, layerOf, cloud, own, owned, under, above, movers, discTex, info: {} };
+    const kit = { T, K, data, DECK, L, M, PIERCE, HALF, low, C, mix, at, altAt, nearWay, skyAt, soupAt, layerOf, cloud, own, owned, under, above, movers, discTex, gates: [], info: {} };
     let scenery = null;
     if (S.scenery) { try { scenery = S.scenery(kit); } catch (e) { console.error('sky scenery failed', e); } }
 
@@ -410,7 +412,7 @@
     const gate = at(M.gate, 0, 0, {}), fin = at(L, 0, 0, {});
     const info = Object.assign({
       meshes, tris: Math.round(tris), parts, buildMs: 0, city: city.info, deck: DECK, pierce: PIERCE,
-      roadEnd: M.lift, parkLat: city.info.parkLat, kerbLat: city.info.kerbLat, halfWidth: HALF,
+      roadEnd: M.lift, parkEnd: M.lift - 14, parkLat: city.info.parkLat, kerbLat: city.info.kerbLat, halfWidth: HALF,
       gate: { s: M.gate, x: gate.x, y: gate.y, z: gate.z }, finish: { s: L, x: fin.x, y: fin.y, z: fin.z },
     }, kit.info);
 
@@ -431,6 +433,18 @@
     const world = {
       group: root, sunDir, info, city,
       heightAt: altAt, at, skyAt,
+      gates: kit.gates, // the big rainbow rings over the road: [{ s, obj }]
+      /* she rang her bell at s: whoever is alive nearby waves and hops. → how many answer for the first time */
+      hello(s) {
+        let fresh = 0;
+        movers.forEach((m) => {
+          const u = m.obj && m.obj.userData;
+          if (!u || !u.cheer || !m.obj.visible || Math.abs(m.s - s) > 45) return;
+          u.wave(2.2); u.cheer(true); m.cheerT = 1.3;
+          if (!m.greeted) { m.greeted = true; fresh++; }
+        });
+        return fresh;
+      },
       parkOk(s, side) { return s < M.lift - 14 && !!(city.parkOk && city.parkOk(s, side)); },
       ready: Promise.all([city.ready, K.fontsReady().then(() => { if (scenery && !world.gone) scenery.fonts(); })]),
       update(dt, t, camera, s) {
@@ -486,6 +500,7 @@
           if (m.obj && m.obj.visible !== live) m.obj.visible = live;
           if (m.still && m.still.visible !== (near && !live)) m.still.visible = near && !live;
           if (live) m.update(dt, t, sNow, camera, riderAt);
+          if (m.cheerT > 0 && (m.cheerT -= dt) <= 0) m.obj.userData.cheer(false); // (after hello())
         }
         if (!up && city.update) city.update(dt, t, camera);
       },

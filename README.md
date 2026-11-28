@@ -93,10 +93,12 @@ The picker, buying with stars, loading the files and the end card need no change
 
 ### The way to Dinosaur City
 
-An imaginary place to ride to (Arielle's idea): the ride starts on her own street, a rainbow ramp lifts off it,
-climbs over the roofs and through the clouds, and becomes a road in the sky: a sea of clouds with unicorns, floating
-islands with long-necks and pterodactyls, rainbow rings and a volcano that puffs hearts, and at the end Dinosaur City.
-These files build the route, the world and the creatures; the game does not load them yet.
+An imaginary place to ride to (Arielle's idea), the dearest one in the picker: the ride starts on her own street,
+a rainbow ramp lifts off it, climbs over the roofs and through the clouds, and becomes a road in the sky: a sea of
+clouds with unicorns, floating islands with long-necks and pterodactyls, rainbow rings and a volcano that puffs
+hearts, and at the end Dinosaur City. On the way she collects stars, rides through rings, hatches dinosaur eggs,
+hops over sleeping clouds, and the dinosaurs wave back when she rings her bell.
+It is the place `dino` of "Adding a place": these files are fetched when she rides there.
 
 | File | What it holds |
 |---|---|
@@ -105,6 +107,7 @@ These files build the route, the world and the creatures; the game does not load
 | `js/ride-sky-scene.js` | what stands along the road, stretch by stretch: islands, waterfalls, rainbows, the volcano, and who lives there |
 | `js/ride-sky-city.js` | Dinosaur City: the gate, the square, the egg houses, the towers, the palace, the welcome |
 | `js/ride-sky-models.js` | `DU.rideSky.make()`: friendly dinosaurs (T-rex, long-neck, three-horn, stegosaurus, pterodactyl, babies), unicorns, eggs that hatch, sleepy clouds, rainbow rings, hearts, balloons |
+| `js/ride-place-dino.js` | `DU.RIDE_PLACE.dino`: what lies on the road stretch by stretch and what happens when she meets it, the texts, the icon, the arrival sound |
 
 Map data © OpenStreetMap contributors, available under the Open Database License.
 

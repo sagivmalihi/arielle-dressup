@@ -19,6 +19,8 @@
                                                           house?, roads, buildings, areas, trees, props, pois, alt? }
       the same shape as DU.RIDE_DATA (ride-data.js), except that the destination is `end` where the school data
       has `school` (a = index of its area in `areas`, optional). The school keeps DU.RIDE_DATA.
+      streets = [[s, name], …]: the plate shown from s on ("רחוב …"); [s, name, true] shows the name as it is
+      (a stretch that is not a street).
       alt (optional) = one height in metres per route point (the same sampling as route): see 4.
 
    3. The hand-written module of a place registers its own behaviour. Every field is optional:
@@ -26,7 +28,8 @@
           data,                       the route data: an object, or a function (id) → object (called once per ride).
                                       Default: DU.RIDE_DATA_OF[id] (for 'school': DU.RIDE_DATA).
           world(scene, data, opts),   → a world with the interface written at the top of ride-world.js
-                                      (update(dt, t, camera), dispose(), ready, info, parkOk: each one optional).
+                                      (update(dt, t, camera, s), dispose(), ready, info, parkOk: each one optional;
+                                      s = how far along the way she is).
                                       opts = { quality: 'high' | 'low', place: id }. Default: DU.rideWorld.build.
                                       The game parks cars where world.parkOk(s, side) allows, up to world.info.parkEnd
                                       (without it: up to the first crossing); a world of its own without parkOk gets none.
@@ -52,13 +55,15 @@
         id, def                 the place id and its catalogue entry
         T, K, P, L, data        THREE, DU.rideKit, the path (K.path(data)), its length, the route data
         scene, camera, world, rider, state, bike, quality
-        g                       the live game state: s (metres along), lat, v, y (the hop), mode, t, stars, roadY, slope…
+        g                       the live game state: s (metres along), lat, v, y (the hop), mode, t, stars, roadY, slope,
+                                rang (how many times she rang her bell)…
         make(kind, opts)        a model from ride-models.js (never throws: a stand-in when a kind is missing)
         place(obj, s, lat, y, flip, turn)   put obj on the way: s metres along, lat to the right, y above the ROAD,
                                 facing the way she rides (flip: facing her; turn: a further turn in radians)
         things                  what the game moves, shows near her and frees: push { type, obj, s, lat, … }
                                 (types the game knows: star · obst · pigeon · cat · ball · walker · cyclist · kid · guard ·
-                                hint; any other type is only shown near her and gets obj.userData.update(dt, t))
+                                hint; any other type is only shown near her and gets obj.userData.update(dt, t).
+                                A 'cat' item may carry cry(): what is heard when she bumps into it, instead of a meow)
         ambient                 objects whose userData.update(dt, t) runs every frame
         friends                 { obj, ph, face } who hop when she arrives (face: true = always turned to the camera)
         crossings, rnd (the seeded random of this ride), RR (DU.rideRider), LANES, VALUE, ICON, texts
@@ -93,7 +98,7 @@
     { id: 'school', name: 'בית הספר', price: 0, kind: 'city', files: ['js/ride-data.js'], ready: true },
     { id: 'sarona', name: 'שרונה', price: 500, kind: 'city', files: ['js/ride-data-sarona.js', 'js/ride-place-sarona.js'], ready: false },
     { id: 'yarkon', name: 'פארק הירקון', price: 1000, kind: 'city', files: ['js/ride-data-yarkon.js', 'js/ride-place-yarkon.js'], ready: false },
-    { id: 'dino', name: 'עיר הדינוזאורים', price: 3000, kind: 'sky', files: ['js/ride-data.js', 'js/ride-sky.js', 'js/ride-place-dino.js'], ready: false },
+    { id: 'dino', name: 'עיר הדינוזאורים', price: 3000, kind: 'sky', files: ['js/ride-data.js', 'js/ride-sky.js', 'js/ride-sky-models.js', 'js/ride-sky-scene.js', 'js/ride-sky-city.js', 'js/ride-sky-world.js', 'js/ride-place-dino.js'], ready: true },
   ];
   PL.HOME = 'school'; // always hers, always there
 
@@ -227,15 +232,17 @@
       return s;
     },
 
-    /* Dinosaur City: a rainbow road through the clouds, a friendly dinosaur and a unicorn */
+    /* Dinosaur City: a rainbow road through the clouds up to the city of egg-domed towers, a friendly long-neck and a unicorn */
     dino(u) {
       let s = `<defs>${lg(u + 's', [[0, '#9f8cff'], [0.5, '#f0b3ee'], [1, '#ffe3c2']])}${lg(u + 'm', [[0, '#ff9ec4'], [0.5, '#c9b3ff'], [1, '#8fd3ff']])}</defs>` + re(0, 0, 400, 300, `url(#${u}s)`);
       [[40, 36, 7], [118, 22, 4.500], [206, 40, 6], [372, 30, 6], [330, 96, 4], [24, 112, 4.500], [164, 78, 3.500]].forEach(([x, y, r]) => (s += pa(DU.sparkleD(x, y, r), '#fff', 'fill-opacity=".9"')));
       s += ci(300, 44, 17, '#fff7d6') + ci(308, 39, 15, '#c7a4f6');
-      // the city on its cloud, far away
-      s += cloud(204, 132, 30, '#fff', 0.95);
-      const twr = (x, y, w, c, c2) => re(x, y, w, 126 - y, c, 'rx="2"') + pa(`M${x - 3} ${y}L${n(x + w / 2)} ${n(y - w * 1.1)}L${x + w + 3} ${y}Z`, c2) + re(x + w / 2 - 2, y + 9, 4, 7, '#fff', 'rx="2" fill-opacity=".8"');
-      s += twr(176, 96, 13, '#ffd9ea', '#ff8fc0') + twr(193, 80, 17, '#fff3c4', '#b99cff') + twr(214, 92, 13, '#d6f0ff', '#7de3e0') + ln('M201.500 61V50', '#fff', 1.6) + pa('M202 50l10 3l-10 4Z', '#ffd54d');
+      // the city on its floating island, far away: round towers with spotted eggs for domes, and hearts from the volcano beside it
+      s += cloud(204, 140, 30, '#fff', 0.95) + pa('M158 126Q204 118 252 126Q240 147 218 154Q205 161 191 154Q169 147 158 126Z', '#b9a3ea') + el(205, 126, 47, 6.5, '#a8e6a2');
+      const twr = (x, y, w, c, c2) => re(x, y, w, 126 - y, c, 'rx="2"') + el(x + w / 2, y - w * 0.5, w * 0.64, w * 0.95, c2) + ci(x + w * 0.3, y - w * 0.85, w * 0.14, '#fff', 'fill-opacity=".9"') + ci(x + w * 0.72, y - w * 0.35, w * 0.11, '#fff', 'fill-opacity=".9"') + re(x - 1.5, y - 1.5, w + 3, 3.2, '#fff', 'rx="1.600"') + ci(x + w / 2, y + 9, 2.1, '#fff3a8');
+      s += twr(174, 100, 12, '#ffd9ea', '#ff8fc0') + twr(193, 88, 17, '#fff6ea', '#fff') + twr(216, 98, 12, '#d6f0ff', '#8fb8ff') + ci(198, 76, 2.4, '#ffd35a') + ci(205, 68, 1.9, '#ffd35a');
+      s += ln('M201.500 62V52', '#fff', 1.6) + pa('M202 52l10 3l-10 4Z', '#ff8fc0');
+      s += pa(DU.heartD(146, 100, 5), '#ff8fc0', 'fill-opacity=".9"') + pa(DU.heartD(137, 84, 3.6), '#ff8fc0', 'fill-opacity=".75"') + pa(DU.heartD(150, 72, 2.6), '#ff8fc0', 'fill-opacity=".6"');
       // the rainbow road: from us, round a bend, up to the city
       const road = 'M150 318C150 262 280 252 276 208C273 176 216 168 206 138';
       [34, 28.500, 23, 17.500, 12, 6.500].forEach((w, i) => (s += ln(road, RAINBOW[i], w, 'stroke-linecap="butt"')));

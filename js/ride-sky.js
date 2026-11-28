@@ -107,7 +107,8 @@
     marks.gate = length - 34; // she rides in through the city gate; the square behind it ends the way
     cache = {
       step: STEP, length, route, alt, zones, marks, deck: DECK, sky: true,
-      streets: src.streets.filter((st) => st[0] < LIFT).map((st) => st.slice()),
+      // the plates along the way: her two real streets, then the stretches of the sky (shown as they are, not as "רחוב …")
+      streets: src.streets.filter((st) => st[0] < LIFT).map((st) => st.slice()).concat(zones.slice(1).map((z) => [z.s0, z.name, true])),
       cross: [], roads: [], buildings: [], areas: [], trees: [], props: [], pois: [],
       house: src.house, school: null,
     };

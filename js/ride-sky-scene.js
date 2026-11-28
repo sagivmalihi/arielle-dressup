@@ -394,6 +394,7 @@
         const s = M.rings + 24 + i * 20, g = P(s, 0, 0);
         const m = actor('ring', { size: 5, cy: 0.92, seed: i }, g.x, g.y, g.z, g.ry, { s, range: 420, back: 30, watch: false });
         m.rotation.order = 'YXZ'; m.rotation.x = -g.pitch;
+        kit.gates.push({ s, obj: m });
       }
       // hearts of cloud float round about, and a few islands
       [[1230, -60, 14, 6], [1345, 75, 26, 7], [1440, 90, 22, 6], [1520, 85, 40, 8], [1600, -70, 16, 6]].forEach(([s, lat, up, size]) => { const g = spot(s, lat, up, size * 1.5); soupAt(s, 'lam').add(heartCloud, g.x, g.y, g.z, facing(g, P(s - 70, 0, 0)), size); });

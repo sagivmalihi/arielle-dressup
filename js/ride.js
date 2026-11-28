@@ -387,8 +387,8 @@
       popsEl.appendChild(p);
       setTimeout(() => p.remove(), 950);
     }
-    function showStreet(name) {
-      const txt = /^(שדרות|בית|רחוב)/.test(name) ? name : 'רחוב ' + name;
+    function showStreet(name, plain) { // plain: a name that is not a street (data.streets: [s, name, true])
+      const txt = plain || /^(שדרות|בית|רחוב)/.test(name) ? name : 'רחוב ' + name;
       streetEl.textContent = txt; streetEl.classList.remove('on'); void streetEl.offsetWidth; streetEl.classList.add('on');
     }
     function fade(to, ms) {
@@ -621,6 +621,7 @@
       if (g.mode !== 'ride' && g.mode !== 'count' && g.mode !== 'arrive') return;
       DU.bike.ring(bikeSpec.bell); if (rider.bell) rider.bell();
       g.seen.bell = true; el.classList.remove('hint-bell');
+      g.rang = (g.rang || 0) + 1; // how often she rang: a place may answer (update(dt, api) sees it change)
       const b = $('.rc-bell', el); b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring');
       let thanked = 0;
       things.forEach((it) => {
@@ -760,7 +761,7 @@
       const fov = baseFov + g.fast * FOV_KICK;
       if (Math.abs(camera.fov - fov) > 0.04) { camera.fov = fov; camera.updateProjectionMatrix(); }
       camera.position.copy(camPos); camera.lookAt(camLook);
-      if (world && world.update) world.update(dt, g.t, camera);
+      if (world && world.update) world.update(dt, g.t, camera, g.s); // (a world of a place's own may want to know where she is)
       if (PL.own.update) { try { PL.own.update(dt, hook); } catch (e) { if (!g.hookErr) { g.hookErr = true; console.error('place update failed', e); } } }
 
       // HUD
@@ -775,7 +776,7 @@
       const k = clamp(g.s / L, 0, 1);
       barFill.style.width = k * 100 + '%'; barBike.style.right = k * 100 + '%';
       const st = data.streets || [];
-      if (g.mode === 'ride') while (streetIdx + 1 < st.length && g.s >= st[streetIdx + 1][0] - 4) { streetIdx++; showStreet(st[streetIdx][1]); }
+      if (g.mode === 'ride') while (streetIdx + 1 < st.length && g.s >= st[streetIdx + 1][0] - 4) { streetIdx++; showStreet(st[streetIdx][1], st[streetIdx][2]); }
       if (chips.length && g.s >= chips[0].s && g.mode === 'ride') {
         const c = chips.shift();
         chipEl.className = 'ride-chip ' + (c.side > 0 ? 'r' : 'l'); chipEl.textContent = c.n; void chipEl.offsetWidth; chipEl.classList.add('on');
@@ -853,7 +854,7 @@
           if (it.hit) continue;
           if (ds < 0.8 && ds > gone - 0.8 && Math.abs(dl) < it.r + 0.4 && g.y < 0.5) {
             it.hit = true; bump(it);
-            if (it.type === 'cat') { sfx.meow(); it.dir *= 1; }
+            if (it.type === 'cat') { (it.cry || sfx.meow)(); it.dir *= 1; } // (a crosser that is not a cat brings its own cry)
           }
         }
       }
