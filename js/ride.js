@@ -216,11 +216,13 @@
     const def = (DU.places && DU.places.get(id)) || { id, name: '' }, own = PLACES[id] || {};
     const to = def.name ? 'ל' + def.name : '';
     const rd = typeof own.data === 'function' ? own.data(id) : own.data;
+    let icon = own.icon || ICON.flag;
+    if (!/class="[^"]*du-ico/.test(icon)) icon = icon.replace('<svg', '<svg class="du-ico"'); // drawn at the size of the text around it, like the other icons
     return {
       id, def, own,
       data: rd || (DU.RIDE_DATA_OF || {})[id] || (id === 'school' ? DU.RIDE_DATA : null),
       texts: Object.assign({ start: to ? `רוכבים ${to}!` : 'יוצאים לרכיבה!', arrive: to ? `הגעת ${to}!` : 'הגעת!', row: to ? `הגעת ${to}` : 'הגעת', arch: 'הגענו!', archBack: 'כל הכבוד!' }, own.texts),
-      icon: own.icon || ICON.flag,
+      icon,
     };
   }
 

@@ -41,8 +41,8 @@
                                       row (the end-card row) · arch / archBack (the two banners of the arch) ·
                                       enter (the door button; only the school has a door).
                                       Default: made from the name in the catalogue; arch 'הגענו!' / 'כל הכבוד!'.
-          icon,                       an <svg> string: the end of the progress bar and the end-card row.
-                                      Default: a little flag (DU.ride.ICON.flag).
+          icon,                       an <svg viewBox="0 0 48 48"> string, drawn like the icons in DU.ride.ICON:
+                                      the end of the progress bar and the end-card row. Default: a little flag.
           sound(api),                 the arrival sound. Default: a soft chime (api.sfx.chime).
         }
       The school's own entry (kids on their way, the crossing patrol, the school bell, "בוקר טוב!") is
@@ -74,6 +74,8 @@
       and the rider, the chase camera, everything put down with place(), the round shadows, the trail,
       collected stars and the hop are all measured from the road; the bike pitches with the slope.
       Things that lie on the road (userData.lie, or a puddle / a car) tilt with it. Without alt nothing changes.
+      s stays the distance on the map; between two route points the height runs straight; beyond both ends the
+      way goes on level (so let it start and end flat). Tried with slopes of 33 % and a climb of 110 m.
 
    5. DU.ride.start({ state, bike, place: id, … }) — see the top of ride.js. app.js: loadRide(id), startRide(state, id).
 

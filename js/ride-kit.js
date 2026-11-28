@@ -144,6 +144,7 @@
     for (let i = 1; i < N; i++) cum[i] = cum[i - 1] + Math.hypot(r[i * 2] - r[i * 2 - 2], r[i * 2 + 1] - r[i * 2 - 1]);
     const length = cum[N - 1];
     const alt = data.alt && data.alt.length >= N ? data.alt : null;
+    if (data.alt && !alt) console.warn('rideKit.path: alt has', data.alt.length, 'heights for', N, 'route points; the way stays flat');
     /* the slope at a route point: from its two neighbours, so it changes smoothly along the way */
     const slopeAt = (i) => { const a = Math.max(0, i - 1), b = Math.min(N - 1, i + 1); return (alt[b] - alt[a]) / (cum[b] - cum[a] || 1); };
     const dirAt = (i) => {

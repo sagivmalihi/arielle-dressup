@@ -45,8 +45,9 @@ that returns SVG.
 From her room (the bike by the door), after the fashion show, from the gallery or from the bike
 workshop, the girl she dressed goes for a ride in 3D. First she picks where to ("לאן רוכבים?", a
 board of postcards): the school, through the real streets, is always hers; the other places are
-bought with stars. A place that is not built yet shows as "בקרוב". At the school she can go inside
-when the ride ends. The ride is the only part that uses a library: [three.js](https://threejs.org)
+bought with stars. A place that is not built yet shows as "בקרוב". When she arrives at the school,
+the end card has a door into it (it appears once the screen inside the school, `DU.app.showSchool`,
+exists). The ride is the only part that uses a library: [three.js](https://threejs.org)
 r149 (MIT), bundled in `lib/`. All of it, and the files of the place she chose, are fetched only
 when a ride starts, so the dress-up game loads as fast as before.
 
