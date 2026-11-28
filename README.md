@@ -26,9 +26,10 @@ lines up on every height and build.
 | `js/render.js` | layer order, the card, thumbnails |
 | `js/score.js` | the "סיימתי" rating and the "invested" rule |
 | `js/props.js` | more things to hold, and the pets and objects that stand next to her (`side` slot) |
-| `js/motion.js` | moving a rigged girl (`renderCard(state, { rig: true })`): poses, hop, blink, sparkles |
+| `js/motion.js` | moving a rigged girl (`renderCard(state, { rig: true })`): poses (and the list she chooses from, `DU.POSE_LIST`), hop, blink, sparkles |
 | `js/room.js`, `js/icons.js` | the home screen (her room) and the hand-drawn icon set |
 | `js/show.js` | the fashion show that plays after "סיימתי" |
+| `js/school.js`, `css/school.css` | inside the school: the class design show. The game invents classmates and their designs, she rates each design with stars, then strikes a pose and the class rates hers |
 | `js/fabric.js` | "my own fabric": pattern fills (`pat:kind:bg:fg:size`), chest stickers, the studio |
 | `js/album.js` | the sticker album, the secret combinations, and the living effects on backgrounds |
 | `js/store.js`, `js/sound.js`, `js/app.js` | saving, sound effects, screens |

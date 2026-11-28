@@ -766,6 +766,15 @@
       .catch((e) => { console.error(e); if (screen === 'garage') { showHome(); toast('אוי, הסדנה לא נפתחה. ננסה שוב?'); } });
   }
 
+  /* ---------------- inside the school (school.js): the class design show ---------------- */
+  function showSchool(state) {
+    if (!DU.school) return showHome();
+    const d = S.data, hero = state || (d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl());
+    snd.unlock();
+    screen = 'school'; closeAll();
+    DU.school.open({ host: app, state: clone(hero), onExit() { showHome(); setPointsUI(); } });
+  }
+
   /* ---------------- one click handler for everything ---------------- */
   const actions = {
     home() { snd.play('tap'); showHome(); },
@@ -875,6 +884,6 @@
 
   /* ---------------- go ---------------- */
   snd.setMuted(S.data.mute);
-  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, showGarage, startRound, finish, confetti, toast, confirm: confirmModal, startRide, get state() { return st; }, get round() { return round; }, actions };
+  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, showGarage, showSchool, startRound, finish, confetti, toast, confirm: confirmModal, startRide, get state() { return st; }, get round() { return round; }, actions };
   showHome();
 })();
