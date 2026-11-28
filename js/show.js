@@ -35,7 +35,7 @@
   };
 
   /* the buttons of the last frame (app.js handles the data-act clicks) */
-  const okButtons = `<button class="btn ride-go" data-act="r-ride">${ICON.bike()}<span>לרכוב לבית הספר</span></button><button class="btn" data-act="r-new">${ICON.spark()}<span>דמות חדשה</span></button><button class="btn white" data-act="r-edit">${ICON.pencil()}<span>להמשיך לעצב</span></button><button class="btn white" data-act="r-photo">${ICON.camera()}<span>תמונה</span></button>`;
+  const okButtons = `<button class="btn ride-go" data-act="r-ride">${ICON.bike()}<span>לצאת לרכיבה</span></button><button class="btn" data-act="r-new">${ICON.spark()}<span>דמות חדשה</span></button><button class="btn white" data-act="r-edit">${ICON.pencil()}<span>להמשיך לעצב</span></button><button class="btn white" data-act="r-photo">${ICON.camera()}<span>תמונה</span></button>`;
   const lowButtons = `<button class="btn sh-love" data-act="r-love">${ICON.heart()}<span>אני אוהבת אותה! לשמור בכל זאת</span></button><button class="btn mint" data-act="r-edit">${ICON.spark()}<span>להוסיף עוד פרטים</span></button>`;
 
   /* ---------- the hall (viewBox 400×300 = the 4:3 stage). Static part and the blinking part apart,

@@ -110,13 +110,18 @@
 .ride-row .p { font-weight: 700; color: #a36b00; }
 .ride-total { margin-top: 12px; font-size: clamp(34px, 6vw, 50px); font-weight: 700; color: #a36b00; display: flex; align-items: center; justify-content: center; gap: 8px; animation: rise .5s .8s both; }
 .ride-note { margin: 10px 0 0; font-weight: 600; color: var(--ink-soft); font-size: 17px; }
+/* the door of the school on the end card: the one golden button */
+.btn.ride-door { background: var(--sun); color: #6b4700; box-shadow: 0 5px 0 #e0a800, 0 10px 18px rgba(224, 168, 0, .28); min-width: 78%; }
+.btn.ride-door:active { box-shadow: 0 1px 0 #e0a800; }
+.btn.ride-door .du-ico { width: 1.35em; height: 1.35em; }
+.ride-card.has-door .row { margin-top: 12px; }
 .ride-load { position: fixed; inset: 0; z-index: 55; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #cfeaff 0%, #e6f5ff 55%, #ffe3f0 100%); }
 .ride-load-card { display: flex; flex-direction: column; align-items: center; gap: 14px; font-size: clamp(22px, 3.4vw, 30px); color: var(--ink); }
 .ride-wheel { width: 120px; height: 120px; animation: ride-roll 1.1s ease-in-out infinite; }
 .ride-wheel .du-ico { width: 100%; height: 100%; }
 @keyframes ride-roll { 0%, 100% { transform: translateX(-18px) rotate(-5deg); } 50% { transform: translateX(18px) rotate(5deg); } }
 
-/* the "ride to school" buttons elsewhere in the game */
+/* the "go for a ride" buttons elsewhere in the game */
 .btn.ride-go { background: #3aa7ff; box-shadow: 0 5px 0 #1f7fd0, 0 10px 18px rgba(31, 127, 208, .25); }
 .btn.ride-go:active { box-shadow: 0 1px 0 #1f7fd0; }
 .btn.ride-go .du-ico { width: 1.5em; height: 1.5em; }
@@ -132,6 +137,19 @@
   .rs-btn { height: 44px; }
   .ride-speed { gap: 3px; padding: 5px; }
   .rs-read small { display: none; }
+  /* a phone on its side: the whole end card, with all its buttons, fits without scrolling */
+  .ride-panel { padding: 8px 16px; }
+  .ride-card { padding: 10px 18px 12px; border-radius: 24px; max-height: 100%; }
+  .ride-card h2 { font-size: 22px; margin-bottom: 5px; }
+  .ride-rows { gap: 4px; }
+  .ride-row { padding: 2px 12px; font-size: 16px; border-radius: 12px; }
+  .ride-row .i { width: 26px; height: 26px; font-size: 22px; }
+  .ride-total { margin-top: 3px; font-size: 30px; }
+  .ride-panel.end .ride-note { display: none; }
+  .ride-card .row, .ride-card.has-door .row, .ride-card .row.tight { margin-top: 7px; gap: 8px; }
+  .ride-card .btn { min-height: 42px; font-size: 17px; padding: 5px 16px; }
+  .ride-card .btn.big { min-height: 44px; font-size: 19px; padding: 5px 20px; }
+  .ride-card .btn.small { min-height: 36px; font-size: 14px; padding: 4px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ride-wheel, .ride.hint-steer .rc-left, .ride.hint-steer .rc-right, .ride.hint-jump .rc-jump, .ride.hint-bell .rc-bell, .ride.hint-speed .rs-up { animation: none; }

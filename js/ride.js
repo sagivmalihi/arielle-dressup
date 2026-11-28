@@ -1,8 +1,14 @@
-/* ride.js — the bike ride to school: a small 3D game on the real streets (ride-data.js).
-   DU.ride.start({ state, veil, onReward(stars), onExit() }) → { stop() }
+/* ride.js — the bike ride: a small 3D game along a baked route. Where she rides to is a "place" (places.js):
+   the school through the real streets (ride-data.js), and whatever other places register themselves.
+     DU.ride.start({ state, bike, place, veil, run, quality,
+                     onReward(stars, info), onExit(), onGarage(), onPlaces(state), onSchool(state) }) → { stop() }
+   place = a place id ('school' when left out). onPlaces: the end card gets a "another place" button.
+   onSchool: at the school the end card gets the door ("להיכנס לבית הספר").
    The city comes from ride-world.js, the girl and her bike from ride-rider.js, the stars, cones,
    pigeons, cars and people from ride-models.js. This file is the game itself: the path, the camera,
-   steering, what lies on the road, the two traffic lights, the HUD, the arrival.
+   steering, what lies on the road, the traffic lights, the HUD, the arrival.
+   What differs from place to place is in DU.RIDE_PLACE[id] (the contract is written at the top of places.js);
+   the school's own entry and the standard pieces (DU.ride.std) are defined here.
    Everything here is loaded only when a ride starts (see loadRide in app.js). */
 (function () {
   'use strict';
@@ -32,6 +38,9 @@
     slow: svg('<path d="M10 9L24 23L38 9M10 23L24 37L38 23" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'),
     rocket: svg('<g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M17 31C15 20 21 9 32 5C36 16 32 27 23 34Z" fill="#fff"/><path d="M17 31L10 30L16 22M23 34L25 41L31 33" fill="#ff5fa2"/><circle cx="26.500" cy="17" r="4" fill="#7de3e0"/><path d="M15 34C10 35 8 39 7 43C11 42 15 41 17 37" fill="#ffd24d"/></g>'),
     bell: svg('<g stroke="#4b3564" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"><path d="M9 34C13 31 12 26 13 20C14 13 18 9 24 9C30 9 34 13 35 20C36 26 35 31 39 34Z" fill="#ffd24d"/><path d="M20 38C21 41 27 41 28 38" fill="none"/><path d="M24 9V5" fill="none"/><path d="M17 17C18 14 20 13 22 12.5" fill="none" stroke="#fff"/></g>'),
+    flag: svg('<g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M12 44V5" fill="none" stroke-width="3.4"/><path d="M12 7H38L32 15.5L38 24H12Z" fill="#ff5fa2"/><circle cx="12" cy="5" r="2.6" fill="#ffd24d"/><path d="M5 44H20" fill="none"/></g>'),
+    pin: svg('<g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M24 44C15 32 10 26 10 19A14 14 0 0 1 38 19C38 26 33 32 24 44Z" fill="#8b6cf0"/><circle cx="24" cy="19" r="5.500" fill="#fff"/></g>'),
+    door: svg('<g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M6 43H42" fill="none"/><path d="M12 43V7H36V43" fill="#fff"/><path d="M12 7L28 11V46L12 43Z" fill="#ffd24d"/><circle cx="23.500" cy="27" r="2" fill="#4b3564" stroke="none"/></g>'),
     red: svg('<circle cx="24" cy="24" r="17" fill="#ff5a5a" stroke="#fff" stroke-width="5"/>'),
     green: svg('<circle cx="24" cy="24" r="17" fill="#3fd07a" stroke="#fff" stroke-width="5"/>'),
   };
@@ -60,8 +69,8 @@
     const ground = new T.Mesh(new T.PlaneGeometry(4000, 4000), K.mat(K.PAL.pavement)); ground.rotation.x = -Math.PI / 2; scene.add(ground);
     const P = K.path(data), pos = [];
     for (let s = -10; s < P.length + 10; s += 2) {
-      const a = P.at(s), b = P.at(s + 2), w = 3.8;
-      pos.push(a.x - a.nx * w, 0.02, a.z - a.nz * w, a.x + a.nx * w, 0.02, a.z + a.nz * w, b.x + b.nx * w, 0.02, b.z + b.nz * w, a.x - a.nx * w, 0.02, a.z - a.nz * w, b.x + b.nx * w, 0.02, b.z + b.nz * w, b.x - b.nx * w, 0.02, b.z - b.nz * w);
+      const a = P.at(s), b = P.at(s + 2), w = 3.8, ya = a.y + 0.02, yb = b.y + 0.02;
+      pos.push(a.x - a.nx * w, ya, a.z - a.nz * w, a.x + a.nx * w, ya, a.z + a.nz * w, b.x + b.nx * w, yb, b.z + b.nz * w, a.x - a.nx * w, ya, a.z - a.nz * w, b.x + b.nx * w, yb, b.z + b.nz * w, b.x - b.nx * w, yb, b.z - b.nz * w);
     }
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.computeVertexNormals();
     scene.add(new T.Mesh(geo, K.mat(K.PAL.asphalt, { side: T.DoubleSide })));
@@ -73,10 +82,15 @@
     return { group, height: 1.5, update(dt, o) { group.rotation.z = -o.steer * 0.15; }, pose() {}, bell() {}, dispose() {} };
   }
 
-  /* ---------- what lies on the way ---------- */
-  function buildLevel(P, data, rnd) {
-    const items = [], L = P.length;
-    const star = (s, lat, y = 0, kind = 'star') => items.push({ type: 'star', kind, s, lat, y });
+  /* ---------- what lies on the way ----------
+     levelKit(P, rnd) → the tools a level is made with. Every tool adds to kit.items; a level hook returns that list.
+       star(s, lat, y, kind)   kind: 'star' | 'bigstar' | 'heart' | 'gem'        line(s, n, lat, gap)
+       zig(s, n, amp, gap)     arc(s, lat, n, len)  (stars over a hop)            ob(kind, s, lat, extra)
+       beat(name, s)           one ready-made bit of about 24 m (the names are the keys of kit.BEATS)
+       zone({ a, b, list, teach, fixed })   fills a…b with beats from list (shuffled; fixed = in order; teach = these first) */
+  function levelKit(P, rnd) {
+    const items = [];
+    const star =(s, lat, y = 0, kind = 'star') => items.push({ type: 'star', kind, s, lat, y });
     const line = (s, n, lat, gap = 3) => { for (let i = 0; i < n; i++) star(s + i * gap, lat); };
     const zig = (s, n, amp = 1.75, gap = 2.5) => { for (let i = 0; i < n; i++) star(s + i * gap, Math.sin((i / (n - 1)) * Math.PI * 2) * amp); };
     const arc = (s, lat, n = 5, len = 5.2) => { for (let i = 0; i < n; i++) { const k = i / (n - 1); star(s - len / 2 + k * len, lat, Math.sin(k * Math.PI) * 1.05); } };
@@ -103,19 +117,7 @@
       walkers(s) { const d = side(); for (let i = 0; i < 2; i++) items.push({ type: 'walker', kind: 'walker', s: s + 12 + i * 9, lat: (i ? -d : d) * 1.2, y: 0, v: -1.1, minS: s - 4, seed: (rnd() * 1e6) | 0 }); items.push({ type: 'hint', s: s - 6, hint: 'bell' }); line(s + 2, 3, 0); },
       cyclist(s) { items.push({ type: 'cyclist', kind: 'cyclist', s: s + 34, lat: -1.5, y: 0, v: -4, seed: (rnd() * 1e6) | 0 }); line(s + 2, 6, 1.6); },
     };
-    /* stretches of the way and what may appear on each (the corners and the crossings stay free) */
-    const cr = data.cross || [];
-    const c1 = cr[0] || { s0: 543, s1: 568 }, c2 = cr[1] || { s0: 875, s1: 898 };
-    const teach = ['line', 'zig', 'cones', 'jumpstars', 'puddle', 'pigeons'];
-    const street = ['cones', 'puddle', 'pigeons', 'bins', 'barrier', 'scooter', 'cat', 'ball', 'zig', 'jumpstars', 'bigstar', 'line', 'heart', 'gem'];
-    const zones = [
-      { a: 12, b: 44, list: ['line'] },
-      { a: 74, b: c1.s0 - 38, list: street, teach },
-      { a: c1.s1 + 30, b: c1.s1 + 82, list: ['walkers', 'line', 'walkers'], fixed: true },
-      { a: c1.s1 + 112, b: c2.s0 - 38, list: ['cyclist', 'scooter', 'jumpstars', 'bigstar', 'cones', 'cyclist', 'puddle', 'zig', 'gem'] },
-      { a: c2.s1 + 12, b: L - 50, list: ['zig', 'jumpstars', 'line', 'heart'], fixed: true },
-    ];
-    zones.forEach((z) => {
+    const zone = (z) => {
       let s = z.a, i = 0, last = '', bag = [];
       const queue = (z.teach || []).slice();
       while (s + 24 <= z.b) {
@@ -127,25 +129,118 @@
         BEATS[name](s); last = name; i++;
         s += 25 + rnd() * 6;
       }
-    });
-    // stars across the two avenues and a runway of stars into the school gate
-    line(c1.s0 + 3, 6, 0, 3.4); line(c2.s0 + 3, 6, 0, 3.4);
-    line(L - 44, 10, 0, 3.2);
-    return items.sort((a, b) => a.s - b.s);
+    };
+    return { items, star, line, zig, arc, ob, lane, other, side, BEATS, beat: (name, s) => BEATS[name](s), zone, LANES };
+  }
+
+  /* ---------- the standard pieces of a ride (DU.ride.std): what a place gets when it does not bring its own.
+     Each takes the api object that the hooks of a place get (see places.js). ---------- */
+  const std = {
+    /* the street level, for a way of any length with any number of big crossings (data.cross):
+       a quiet start · a street that first teaches every trick · after a crossing people on foot, then the bike path ·
+       an easy run to the end. The crossings themselves stay free of things, with a row of stars across each. */
+    level(api) {
+      const kit = api.kit(), L = api.L, cr = api.data.cross || [];
+      const teach = ['line', 'zig', 'cones', 'jumpstars', 'puddle', 'pigeons'];
+      const street = ['cones', 'puddle', 'pigeons', 'bins', 'barrier', 'scooter', 'cat', 'ball', 'zig', 'jumpstars', 'bigstar', 'line', 'heart', 'gem'];
+      const path = ['cyclist', 'scooter', 'jumpstars', 'bigstar', 'cones', 'cyclist', 'puddle', 'zig', 'gem'];
+      const walk = ['walkers', 'line', 'walkers'], easy = ['zig', 'jumpstars', 'line', 'heart'];
+      const END = L - 50; // the last metres belong to the runway of stars
+      const zones = [{ a: 12, b: 44, list: ['line'] }];
+      zones.push({ a: 74, b: cr.length ? cr[0].s0 - 38 : END, list: street, teach });
+      cr.forEach((c, i) => {
+        const next = cr[i + 1], b = next ? next.s0 - 38 : END;
+        if (!next && b - c.s1 < 200) { zones.push({ a: c.s1 + 12, b, list: easy, fixed: true }); return; } // a short last stretch
+        zones.push({ a: c.s1 + 30, b: Math.min(b, c.s1 + 82), list: walk, fixed: true });
+        if (next) zones.push({ a: c.s1 + 112, b, list: path });
+        else { zones.push({ a: c.s1 + 112, b: b - 130, list: path }); zones.push({ a: b - 118, b, list: easy, fixed: true }); }
+      });
+      zones.forEach(kit.zone);
+      cr.forEach((c) => kit.line(c.s0 + 3, 6, 0, 3.4));
+      kit.line(L - 44, 10, 0, 3.2);
+      return kit.items;
+    },
+    /* the balloon arch over the end of the way; its two banners are the place's texts */
+    arch(api, opts) {
+      const arch = api.make('arch', Object.assign({ text: api.texts.arch, backText: api.texts.archBack }, opts));
+      api.place(arch, api.L - 9, 0, 0, true); api.scene.add(arch); api.ambient.push(arch);
+      return arch;
+    },
+    /* children on their way, on both sides of the last 150 metres: they cheer when she passes or rings */
+    kids(api, n = 7) {
+      const L = api.L, r3 = api.K.rng(5);
+      for (let i = 0; i < n; i++) {
+        const kid = api.make('kid', { seed: 100 + i });
+        const it = { type: 'kid', obj: kid, s: L - 150 + i * 19 + r3() * 8, lat: (i % 2 ? 1 : -1) * (3.25 + r3() * 0.25), v: 0.9 + r3() * 0.4 };
+        api.place(kid, it.s, it.lat, 0); api.scene.add(kid); api.things.push(it);
+      }
+    },
+    /* the crossing patrol: two guards who hold up their signs when she comes */
+    guards(api, s) {
+      if (s === undefined) s = api.L - 62;
+      [-3.45, 3.45].forEach((lat, i) => { const gd = api.make('guard', { seed: i }); api.place(gd, s, lat, 0, false, lat > 0 ? -1.1 : 1.1); api.scene.add(gd); api.things.push({ type: 'guard', obj: gd, s, lat }); });
+    },
+    /* friends: paper dolls like her, waiting at the end and hopping when she arrives */
+    friends(api) {
+      const L = api.L, RR = api.RR;
+      if (RR && RR.friends && RR.doll) {
+        let list = [];
+        try { list = RR.friends(5, 11, api.state.kind); } catch (e) { console.error(e); }
+        list.forEach((fs, i) => {
+          const lat = [-2.7, -1.75, 1.8, 2.8, -3.6][i], s = L + [-2.7, -1.0, -0.8, -2.4, -4.2][i];
+          Promise.resolve(RR.doll(fs, { pose: i % 2 ? 'wave' : 'cheer', h: 1.2 + (i % 3) * 0.06 })).then((d) => {
+            if (api.dead()) return;
+            api.place(d, s, lat, 0, true); api.scene.add(d);
+            api.friends.push({ obj: d, ph: i * 1.3, face: true });
+          }).catch((e) => console.error('friend failed', e));
+        });
+      } else {
+        [-3.2, -2.3, 2.3, 3.2].forEach((lat, i) => { const kd = api.make('kid', { seed: 300 + i }); api.place(kd, L + 1 + (i % 2) * 2, lat, 0, true, lat > 0 ? 0.5 : -0.5); api.scene.add(kd); api.ambient.push(kd); api.friends.push({ obj: kd, ph: i * 1.3 }); });
+      }
+    },
+    /* what stands at the end of a way that brings nothing of its own */
+    scenery(api) { std.arch(api); std.friends(api); },
+  };
+
+  /* ---------- the places ---------- */
+  const PLACES = (DU.RIDE_PLACE = DU.RIDE_PLACE || {});
+  /* the school, as it has always been: the gate, the kids on their way, the crossing patrol, her friends */
+  PLACES.school = Object.assign({
+    texts: { start: 'רוכבים לבית הספר!', arrive: 'הגעת לבית הספר!', row: 'הגעת לבית הספר', arch: 'בוקר טוב!', archBack: 'כל הכבוד!', enter: 'להיכנס לבית הספר' },
+    icon: ICON.school,
+    sound(api) { api.sfx.schoolBell(); },
+    scenery(api) { std.arch(api); std.kids(api); std.guards(api); std.friends(api); },
+  }, PLACES.school);
+  /* a place put together: its own fields where it has them, the standard ones elsewhere */
+  function placeOf(id) {
+    const def = (DU.places && DU.places.get(id)) || { id, name: '' }, own = PLACES[id] || {};
+    const to = def.name ? 'ל' + def.name : '';
+    const rd = typeof own.data === 'function' ? own.data(id) : own.data;
+    let icon = own.icon || ICON.flag;
+    if (!/class="[^"]*du-ico/.test(icon)) icon = icon.replace('<svg', '<svg class="du-ico"'); // drawn at the size of the text around it, like the other icons
+    return {
+      id, def, own,
+      data: rd || (DU.RIDE_DATA_OF || {})[id] || (id === 'school' ? DU.RIDE_DATA : null),
+      texts: Object.assign({ start: to ? `רוכבים ${to}!` : 'יוצאים לרכיבה!', arrive: to ? `הגעת ${to}!` : 'הגעת!', row: to ? `הגעת ${to}` : 'הגעת', arch: 'הגענו!', archBack: 'כל הכבוד!' }, own.texts),
+      icon,
+    };
   }
 
   /* ---------- the ride ---------- */
   DU.ride = {
     live: null,
+    std, levelKit, ICON,
     start(o) {
       if (DU.ride.live) return DU.ride.live;
-      DU.ride.live = makeRide(o || {});
-      return DU.ride.live;
+      const r = makeRide(o || {});
+      if (!r.failed) DU.ride.live = r; // a ride that could not start leaves the way free for the next one
+      return r;
     },
   };
 
   function makeRide(o) {
-    const T = window.THREE, K = DU.rideKit, data = DU.RIDE_DATA;
+    const T = window.THREE, K = DU.rideKit;
+    const PL = placeOf(o.place || 'school'), data = PL.data, texts = PL.texts; // where she rides to
     const state = o.state || DU.defaultState();
     const bikeSpec = DU.bike.norm(o.bike); // her bike (bike.js): how it looks, its bell, what it leaves behind
     let dead = false, raf = 0, trail = null;
@@ -161,7 +256,7 @@
       <div class="ride-hud" hidden>
         <div class="ride-top">
           <button class="round-btn" data-ride="exit" aria-label="לצאת">${ico('home')}</button>
-          <div class="ride-prog"><span class="rp-end">${ico('home')}</span><div class="rp-bar"><i></i><b>${ICON.bike}</b></div><span class="rp-end">${ICON.school}</span></div>
+          <div class="ride-prog"><span class="rp-end">${ico('home')}</span><div class="rp-bar"><i></i><b>${ICON.bike}</b></div><span class="rp-end">${PL.icon}</span></div>
           <div class="stars-pill ride-stars">${ico('star')} <span>0</span></div>
           <button class="round-btn" data-ride="mute" aria-label="צליל">${ico(DU.sound && DU.sound.muted ? 'mute' : 'sound')}</button>
         </div>
@@ -190,13 +285,14 @@
     function fail(e) {
       console.error('ride failed', e);
       veil.remove();
-      el.remove(); DU.ride.live = null; dead = true;
+      el.remove(); DU.ride.live = null; dead = true; api.failed = true;
       if (DU.app && DU.app.toast) DU.app.toast('אוי, הרכיבה לא עובדת במכשיר הזה');
       if (o.onExit) o.onExit();
     }
 
     /* ----- 3D ----- */
     let renderer, scene, camera, world, rider, P, Models;
+    if (!data || !data.route) { fail(new Error('no route for the place ' + PL.id)); return api; }
     try {
       renderer = new T.WebGLRenderer({ canvas: $('.ride-canvas', el), antialias: true, powerPreference: 'high-performance' });
     } catch (e) { fail(e); return api; }
@@ -223,6 +319,7 @@
     g = {
       mode: 'load',          // load · intro · count · ride · arrive · done
       t: 0, s: 3, lat: 0.9, v: 0, y: 0, vy: 0, steer: 0, heading: 0,
+      roadY: 0, slope: 0, pitch: 0, // the road under her, on a way with heights (y, the hop, is measured from it)
       want: CRUISE,          // the speed she asked for: ▲ and ▼ move it and it stays where she leaves it
       fast: 0, top: 0, moved: 0, rideT: 0, stillT: 0, kmh: -1,
       stars: 0, polite: 0, bumps: 0, combo: 0, comboT: 0, hurtT: 0, wobble: 0, boostT: 0,
@@ -243,11 +340,37 @@
       if (!m.userData) m.userData = {};
       return m;
     };
+    /* put a thing on the way: s metres along, lat metres to the right, y metres above the road, facing the way she rides
+       (flip = facing her, turn = a further turn) */
     function place(obj, s, lat, y, flip, turn) {
       P.at(s, tmp);
-      obj.position.set(tmp.x + tmp.nx * lat, y || 0, tmp.z + tmp.nz * lat);
+      obj.position.set(tmp.x + tmp.nx * lat, tmp.y + (y || 0), tmp.z + tmp.nz * lat);
       obj.rotation.y = Math.atan2(tmp.tx, tmp.tz) + (flip ? Math.PI : 0) + (turn || 0);
+      if (P.alt) onSlope(obj, tmp.slope, (flip ? Math.PI : 0) + (turn || 0));
     }
+    /* a way with heights: what lies on the road (a puddle, a car; anything with userData.lie) tilts with it,
+       and under everything else only its round shadow does. rel = how the thing is turned against the way. */
+    const LIES = { puddle: 1, car: 1, taxi: 1, bus: 1, moped: 1 };
+    const qTilt = new T.Quaternion(), vUp = new T.Vector3(0, 1, 0), vN = new T.Vector3();
+    function onSlope(obj, slope, rel) {
+      const u = obj.userData, riseZ = slope * Math.cos(rel), riseX = -slope * Math.sin(rel); // rise per metre along its own +Z and +X
+      if (u.lie || LIES[u.kind]) { obj.rotation.order = 'YXZ'; obj.rotation.x = -Math.atan(riseZ); obj.rotation.z = Math.atan(riseX); return; }
+      if (!u.shades) { u.shades = []; obj.traverse((c) => { if (c.userData.shadow) u.shades.push({ m: c, q: c.quaternion.clone() }); }); }
+      if (!u.shades.length) return;
+      qTilt.setFromUnitVectors(vUp, vN.set(-riseX, 1, -riseZ).normalize());
+      for (let i = 0; i < u.shades.length; i++) u.shades[i].m.quaternion.copy(qTilt).multiply(u.shades[i].q);
+    }
+    /* what the hooks of a place get (see places.js for the whole list) */
+    const hook = {
+      id: PL.id, def: PL.def, texts, T, K, data, state, bike: bikeSpec, quality: o.quality || 'high',
+      get P() { return P; }, get L() { return P.length; }, get scene() { return scene; }, get camera() { return camera; },
+      get world() { return world; }, get rider() { return rider; }, get RR() { return DU.rideRider; }, get g() { return g; },
+      get things() { return things; }, get ambient() { return ambient; }, get friends() { return friends; }, get crossings() { return crossings; },
+      get rnd() { return rnd; }, get sfx() { return sfx; },
+      make: (kind, opts) => make(kind, opts), place, kit: () => levelKit(P, rnd), std, LANES, VALUE, ICON, tone,
+      say: (html, ms, cls) => say(html, ms, cls), pop: (text, cls) => pop(text, cls), addStars: (n, text, cls) => addStars(n, text, cls),
+      dead: () => dead,
+    };
 
     /* ----- messages ----- */
     let msgTimer = 0;
@@ -289,6 +412,7 @@
       count(last) { tone(last ? 1047 : 523, { dur: last ? 0.4 : 0.14, type: 'triangle', vol: 0.2 }); },
       thanks() { tone(988, { dur: 0.1, type: 'sine', vol: 0.12 }); tone(1319, { at: 0.1, dur: 0.16, type: 'sine', vol: 0.12 }); },
       schoolBell() { for (let i = 0; i < 14; i++) tone(i % 2 ? 1568 : 1319, { at: i * 0.075, dur: 0.09, type: 'square', vol: 0.045 }); },
+      chime() { [1047, 1319, 1568, 2093, 1568, 2093].forEach((f, i) => tone(f, { at: i * 0.11, dur: 0.3, type: 'sine', vol: 0.09 })); }, // arriving at a place that has no sound of its own
       meow() { tone(700, { dur: 0.28, type: 'triangle', vol: 0.1, slide: 1100 }); tone(1100, { at: 0.26, dur: 0.22, type: 'triangle', vol: 0.08, slide: 600 }); },
     };
     /* a little riding tune: a soft pattern that loops while she rides */
@@ -309,20 +433,25 @@
       if (K.fontsReady) await K.fontsReady();
       P = K.path(data);
       Models = DU.rideModels || null;
-      try { world = DU.rideWorld.build(scene, data, { quality: o.quality || 'high' }); }
+      try { world = (PL.own.world || DU.rideWorld.build)(scene, data, { quality: o.quality || 'high', place: PL.id }); }
       catch (e) { console.error('world failed', e); world = fallbackWorld(T, K, scene, data); }
       if (world && world.ready) await world.ready;
       try { DU.rideRider.CHASE = { y: CAM_UP, z: -CAM_BACK }; rider = await DU.rideRider.make(state, { bike: o.bike }); }
       catch (e) { console.error('rider failed', e); rider = fallbackRider(T, K); }
       if (dead) return;
       scene.add(rider.group);
+      if (P.alt) rider.group.rotation.order = 'YXZ'; // on a way with heights the bike pitches with the slope
       try { trail = DU.rideBike.trail(bikeSpec.trail); if (trail) scene.add(trail.obj); } catch (e) { console.error('trail failed', e); trail = null; }
 
-      // things on the way
-      level = buildLevel(P, data, rnd);
+      // things on the way (a level may bring its own model in it.obj)
+      try { level = (PL.own.level || std.level)(hook) || []; }
+      catch (e) { console.error('level failed', e); level = []; }
+      level = level.slice().sort((a, b) => a.s - b.s);
       level.forEach((it) => {
         if (it.type === 'hint') { things.push(it); return; }
-        const obj = make(it.kind, { seed: it.seed });
+        const obj = it.obj || make(it.kind, { seed: it.seed });
+        if (!obj.userData) obj.userData = {};
+        if (it.y === undefined) it.y = 0;
         it.obj = obj; it.r = obj.userData.r || 0.4; it.h = obj.userData.h || 0.8;
         place(obj, it.s, it.lat, it.y, it.type === 'walker' || it.type === 'cyclist');
         if (it.type === 'obst' && it.kind !== 'puddle') obj.rotation.y += (rnd() - 0.5) * 0.5;
@@ -330,7 +459,7 @@
         obj.visible = false; scene.add(obj); things.push(it);
       });
 
-      // the two big crossings: a light on her side, and traffic on the avenue
+      // the big crossings: a light on her side, and traffic on the avenue
       (data.cross || []).forEach((c) => {
         const X = { n: c.n, s0: c.s0, s1: c.s1, stopS: c.s0 - 4.5, green: false, waiting: false, timer: 0, told: false, cars: [], spawn: [0.2, 1.1], poles: [] };
         [[X.stopS + 1.2, 3.5], [c.s1 + 1.5, 3.5]].forEach(([s, lat]) => { const p = make('light'); place(p, s, lat, 0, true); scene.add(p); X.poles.push(p); if (p.userData.set) p.userData.set('red'); });
@@ -338,7 +467,7 @@
       });
 
       parkCars();
-      schoolEnd();
+      try { (PL.own.scenery || std.scenery)(hook); } catch (e) { console.error('scenery failed', e); }
       landmarks();
       corners = findCorners();
       veil.remove();
@@ -364,8 +493,11 @@
       return out;
     }
 
-    /* parked cars along the streets, merged into a few meshes so they cost almost nothing */
+    /* parked cars along the streets, merged into a few meshes so they cost almost nothing.
+       The world says where a car may stand (world.parkOk) and up to where (world.info.parkEnd; without it: up to the
+       first big crossing). A world of a place's own that has no parkOk gets no parked cars. */
     function parkCars() {
+      if (PL.own.world && !(world && world.parkOk)) return;
       const junc = [];
       (data.roads || []).forEach((rd) => {
         if (!'ATRS'.includes(rd.k)) return;
@@ -373,12 +505,13 @@
         for (let i = 0; i < p.length; i += 2) { const q = P.near(p[i], p[i + 1]); if (q.d < 3) near.push(q.s); else if (q.d > 10) far++; }
         if (near.length && far) near.forEach((s) => junc.push(s));
       });
-      const c1 = (data.cross || [])[0] || { s0: 545 };
+      const c1 = (data.cross || [])[0], info = (world && world.info) || {};
+      const end = info.parkEnd !== undefined ? info.parkEnd : c1 ? c1.s0 - 16 : P.length - 30;
       const groups = {}; // chunk of the street + material → geometries to merge
       const r2 = K.rng(77);
       for (let side = -1; side <= 1; side += 2) {
         let s = 10 + r2() * 4;
-        while (s < c1.s0 - 16) {
+        while (s < end) {
           const skip = (world && world.parkOk ? !world.parkOk(s, side) || !world.parkOk(s + 2.2, side) || !world.parkOk(s - 2.2, side) : junc.some((j) => Math.abs(j - s) < 9.5) || (s > 44 && s < 70)) || r2() < 0.28;
           if (!skip) {
             const car = make(r2() < 0.1 ? 'taxi' : r2() < 0.12 ? 'moped' : 'car', { seed: (r2() * 1e6) | 0 });
@@ -396,7 +529,7 @@
               });
             };
             eat(car);
-            if (!hasBlob) { const sh = K.blob(2.4, 0.22); sh.position.set(car.position.x, 0.035, car.position.z); sh.scale.set(0.8, 1.9, 1); sh.rotation.z = -car.rotation.y; eat(sh); }
+            if (!hasBlob) { const sh = K.blob(2.4, 0.22); sh.position.set(car.position.x, car.position.y + 0.035, car.position.z); sh.scale.set(0.8, 1.9, 1); sh.rotation.z = -car.rotation.y; eat(sh); }
           }
           s += 5.4 + r2() * 1.6;
         }
@@ -407,36 +540,6 @@
         scene.add(m);
         G.list.forEach((x) => x.dispose());
       });
-    }
-
-    /* the school gate: the balloon arch, the kids on the way, the crossing patrol, her friends */
-    function schoolEnd() {
-      const L = P.length;
-      const arch = make('arch', { text: 'בוקר טוב!', backText: 'כל הכבוד!' });
-      place(arch, L - 9, 0, 0, true); scene.add(arch); ambient.push(arch);
-      const r3 = K.rng(5);
-      for (let i = 0; i < 7; i++) {
-        const kid = make('kid', { seed: 100 + i });
-        const it = { type: 'kid', obj: kid, s: L - 150 + i * 19 + r3() * 8, lat: (i % 2 ? 1 : -1) * (3.25 + r3() * 0.25), v: 0.9 + r3() * 0.4 };
-        place(kid, it.s, it.lat, 0); scene.add(kid); things.push(it);
-      }
-      [-3.45, 3.45].forEach((lat, i) => { const gd = make('guard', { seed: i }); place(gd, L - 62, lat, 0, false, lat > 0 ? -1.1 : 1.1); scene.add(gd); things.push({ type: 'guard', obj: gd, s: L - 62, lat }); });
-      // friends: paper dolls like her, waiting at the gate
-      const RR = DU.rideRider;
-      if (RR && RR.friends && RR.doll) {
-        let list = [];
-        try { list = RR.friends(5, 11, state.kind); } catch (e) { console.error(e); }
-        list.forEach((fs, i) => {
-          const lat = [-2.7, -1.75, 1.8, 2.8, -3.6][i], s = L + [-2.7, -1.0, -0.8, -2.4, -4.2][i];
-          Promise.resolve(RR.doll(fs, { pose: i % 2 ? 'wave' : 'cheer', h: 1.2 + (i % 3) * 0.06 })).then((d) => {
-            if (dead) return;
-            place(d, s, lat, 0, true); scene.add(d);
-            friends.push({ obj: d, ph: i * 1.3, face: true });
-          }).catch((e) => console.error('friend failed', e));
-        });
-      } else {
-        [-3.2, -2.3, 2.3, 3.2].forEach((lat, i) => { const kd = make('kid', { seed: 300 + i }); place(kd, L + 1 + (i % 2) * 2, lat, 0, true, lat > 0 ? 0.5 : -0.5); scene.add(kd); ambient.push(kd); friends.push({ obj: kd, ph: i * 1.3 }); });
-      }
     }
 
     /* places she passes: a chip with the name and an arrow to the side it is on */
@@ -464,10 +567,10 @@
       if (rider.pose) rider.pose('wave');
       // a look at her from the front, the house behind her
       P.at(g.s + 3.3, tmp);
-      camPos.set(tmp.x + tmp.nx * (g.lat - 1.5), 1.3, tmp.z + tmp.nz * (g.lat - 1.5));
-      P.at(g.s, tmp); camLook.set(tmp.x + tmp.nx * g.lat, 0.86, tmp.z + tmp.nz * g.lat);
+      camPos.set(tmp.x + tmp.nx * (g.lat - 1.5), tmp.y + 1.3, tmp.z + tmp.nz * (g.lat - 1.5));
+      P.at(g.s, tmp); camLook.set(tmp.x + tmp.nx * g.lat, tmp.y + 0.86, tmp.z + tmp.nz * g.lat);
       camera.position.copy(camPos); camera.lookAt(camLook);
-      say(`<b>רוכבים לבית הספר!</b>${(state.name || '').trim() ? `<small>${esc((state.name || '').trim())} יוצאת לדרך</small>` : ''}`, 2300, 'title');
+      say(`<b>${esc(texts.start)}</b>${(state.name || '').trim() ? `<small>${esc((state.name || '').trim())} יוצאת לדרך</small>` : ''}`, 2300, 'title');
       await fade(0, 500);
       await wait(1900);
       if (dead) return;
@@ -493,16 +596,19 @@
       let d = want - g.heading; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
       g.heading = dt ? g.heading + d * (1 - Math.exp(-dt * 12)) : want;
       const wob = g.wobble > 0 ? Math.sin(g.t * 26) * g.wobble * 0.22 : 0;
-      rider.group.position.set(tmp.x + tmp.nx * g.lat, g.y, tmp.z + tmp.nz * g.lat);
-      rider.group.rotation.set(0, g.heading - g.steer * 0.16 + wob * 0.4, 0);
+      // the road under her: g.y (the hop) and everything else that has a height is measured from it
+      g.roadY = tmp.y; g.slope = tmp.slope;
+      if (P.alt) g.pitch = dt ? damp(g.pitch, -Math.atan(tmp.slope), 10, dt) : -Math.atan(tmp.slope);
+      rider.group.position.set(tmp.x + tmp.nx * g.lat, tmp.y + g.y, tmp.z + tmp.nz * g.lat);
+      rider.group.rotation.set(g.pitch, g.heading - g.steer * 0.16 + wob * 0.4, 0);
       return d;
     }
     function chaseTarget(out, look) {
       const back = CAM_BACK, up = CAM_UP;
       P.at(g.s - back, tmp);
-      out.set(tmp.x + tmp.nx * g.lat * 0.6, up + g.y * 0.35, tmp.z + tmp.nz * g.lat * 0.6);
+      out.set(tmp.x + tmp.nx * g.lat * 0.6, tmp.y + up + g.y * 0.35, tmp.z + tmp.nz * g.lat * 0.6);
       P.at(g.s + 9 + g.v * 0.22, tmp); // going fast, she looks further down the road
-      look.set(tmp.x + tmp.nx * g.lat * 0.35, 1.25 + g.y * 0.3, tmp.z + tmp.nz * g.lat * 0.35);
+      look.set(tmp.x + tmp.nx * g.lat * 0.35, tmp.y + 1.25 + g.y * 0.3, tmp.z + tmp.nz * g.lat * 0.35);
     }
     const camT = new T.Vector3(), lookT = new T.Vector3();
     function snapCamera() { chaseTarget(camPos, camLook); camera.position.copy(camPos); camera.lookAt(camLook); }
@@ -562,7 +668,7 @@
         g.lat = clamp(g.lat + g.steer * 4.4 * dt * (0.35 + 0.65 * sp), -LAT_MAX, LAT_MAX);
         if (g.mode === 'arrive') g.lat = damp(g.lat, 0, 2.5, dt);
 
-        // speed: as fast as she asked for; she slows by herself for a sharp corner and a red light, and stops at the school
+        // speed: as fast as she asked for; she slows by herself for a sharp corner and a red light, and stops at the end of the way
         const X = crossings.find((c) => !c.passed);
         if (g.mode === 'ride') {
           g.rideT += dt;
@@ -619,14 +725,15 @@
       g.fast = damp(g.fast, g.mode === 'ride' ? clamp((g.v - CRUISE) / (VMAX - CRUISE), 0, 1) : 0, 4, dt);
       if (trail) { // it starts at the back wheel
         const sn = Math.sin(rider.group.rotation.y), cs = Math.cos(rider.group.rotation.y);
-        trail.update(dt, rider.group.position.x - sn * 0.5, g.y + 0.125, rider.group.position.z - cs * 0.5, g.mode === 'ride' || g.mode === 'arrive' ? g.v : 0);
+        trail.update(dt, rider.group.position.x - sn * 0.5, (P.alt ? rider.group.position.y - g.slope * 0.5 : g.y) + 0.125, rider.group.position.z - cs * 0.5, g.mode === 'ride' || g.mode === 'arrive' ? g.v : 0);
       }
 
       updateThings(dt);
       updateTraffic(dt);
       ambient.forEach((a) => a.userData.update && a.userData.update(dt, g.t));
       friends.forEach((f) => {
-        f.obj.position.y = g.mode === 'arrive' || g.mode === 'done' ? Math.abs(Math.sin(g.t * 6 + f.ph)) * 0.22 : 0;
+        if (f.y0 === undefined) f.y0 = f.obj.position.y; // where it was put (the road may be high up)
+        f.obj.position.y = f.y0 + (g.mode === 'arrive' || g.mode === 'done' ? Math.abs(Math.sin(g.t * 6 + f.ph)) * 0.22 : 0);
         if (f.face) f.obj.rotation.y = Math.atan2(camera.position.x - f.obj.position.x, camera.position.z - f.obj.position.z); // paper friends always turn to us
       });
 
@@ -635,24 +742,26 @@
         chaseTarget(camT, lookT);
         // the camera follows more tightly the faster she goes, so it only falls a little further behind
         const kf = clamp((g.v - CRUISE) / (VMAX - CRUISE), 0, 1), rc = Math.max(5, g.v / (1.28 + 0.75 * kf)), rl = Math.max(7, g.v / (0.9 + 2 * kf));
-        camPos.x = damp(camPos.x, camT.x, rc, dt); camPos.y = damp(camPos.y, camT.y, 5, dt); camPos.z = damp(camPos.z, camT.z, rc, dt);
-        camLook.x = damp(camLook.x, lookT.x, rl, dt); camLook.y = damp(camLook.y, lookT.y, 7, dt); camLook.z = damp(camLook.z, lookT.z, rl, dt);
+        // on a way with heights the camera climbs as fast as it follows, so it stays above the road behind her
+        camPos.x = damp(camPos.x, camT.x, rc, dt); camPos.y = damp(camPos.y, camT.y, P.alt ? rc : 5, dt); camPos.z = damp(camPos.z, camT.z, rc, dt);
+        camLook.x = damp(camLook.x, lookT.x, rl, dt); camLook.y = damp(camLook.y, lookT.y, P.alt ? rl : 7, dt); camLook.z = damp(camLook.z, lookT.z, rl, dt);
       } else if (g.frontCam) {
         g.frontT += dt;
         P.at(L + 3.4 - Math.min(0.8, g.frontT * 0.2), tmp);
-        camPos.set(tmp.x + tmp.nx * (-0.8 + g.frontT * 0.05), 1.35, tmp.z + tmp.nz * (-0.8 + g.frontT * 0.05));
+        camPos.set(tmp.x + tmp.nx * (-0.8 + g.frontT * 0.05), tmp.y + 1.35, tmp.z + tmp.nz * (-0.8 + g.frontT * 0.05));
         // when the card comes she moves to the side of the picture (to the top on a tall screen)
         g.shift = damp(g.shift || 0, g.mode === 'done' ? 1 : 0, 3, dt);
         const wide = camera.aspect > 1.1, sh = g.shift * (wide ? 1.05 : 0);
-        camLook.set(rider.group.position.x + tmp.nx * sh, 0.9 - g.shift * (wide ? 0 : 0.75), rider.group.position.z + tmp.nz * sh);
+        camLook.set(rider.group.position.x + tmp.nx * sh, g.roadY + 0.9 - g.shift * (wide ? 0 : 0.75), rider.group.position.z + tmp.nz * sh);
       } else if (g.mode === 'intro') {
         P.at(g.s + 3.3 - g.t * 0.1, tmp);
-        camPos.set(tmp.x + tmp.nx * (g.lat - 1.5), 1.3, tmp.z + tmp.nz * (g.lat - 1.5));
+        camPos.set(tmp.x + tmp.nx * (g.lat - 1.5), tmp.y + 1.3, tmp.z + tmp.nz * (g.lat - 1.5));
       }
       const fov = baseFov + g.fast * FOV_KICK;
       if (Math.abs(camera.fov - fov) > 0.04) { camera.fov = fov; camera.updateProjectionMatrix(); }
       camera.position.copy(camPos); camera.lookAt(camLook);
       if (world && world.update) world.update(dt, g.t, camera);
+      if (PL.own.update) { try { PL.own.update(dt, hook); } catch (e) { if (!g.hookErr) { g.hookErr = true; console.error('place update failed', e); } } }
 
       // HUD
       const kmh = Math.round(g.v * 3.6);
@@ -683,6 +792,7 @@
           continue;
         }
         const obj = it.obj;
+        if (it.r === undefined) { it.r = obj.userData.r || 0.4; it.h = obj.userData.h || 0.8; if (it.type === 'star' && it.y === undefined) it.y = 0; } // a thing a place pushed in by itself
         // people and animals that move by themselves
         if (it.type === 'walker' || it.type === 'cyclist' || it.type === 'kid') {
           const active = it.type === 'kid' ? Math.abs(it.s - g.s) < 90 : it.s - g.s < (it.type === 'cyclist' ? 70 : 42) && it.s - g.s > -20;
@@ -719,15 +829,15 @@
 
         const ds = it.s - g.s, dl = it.lat - g.lat, gone = -g.moved; // gone: what she passed during this frame
         if (it.type === 'star') {
-          if (it.taken) { obj.position.x = rider.group.position.x; obj.position.z = rider.group.position.z; continue; } // its last sparkle stays over her head, however fast she rides on
+          if (it.taken) { obj.position.x = rider.group.position.x; obj.position.z = rider.group.position.z; if (P.alt) obj.position.y = g.roadY + it.over; continue; } // its last sparkle stays over her head, however fast she rides on
           // a gentle pull when she is close (it reaches further when she is fast)
-          if (ds < 2.2 + g.v * 0.1 && ds > gone - 0.8 && Math.abs(dl) < 1.5 && Math.abs(it.y - g.y) < 1.3) { it.lat = damp(it.lat, g.lat, 10 + g.v, dt); place(obj, it.s, it.lat, damp(obj.position.y, it.y + (g.y - it.y) * 0.6, 8, dt)); }
+          if (ds < 2.2 + g.v * 0.1 && ds > gone - 0.8 && Math.abs(dl) < 1.5 && Math.abs(it.y - g.y) < 1.3) { it.lat = damp(it.lat, g.lat, 10 + g.v, dt); place(obj, it.s, it.lat, damp(obj.position.y - (P.alt ? P.at(it.s, tmp2).y : 0), it.y + (g.y - it.y) * 0.6, 8, dt)); }
           if (ds < 0.9 && ds > gone - 0.9 && Math.abs(it.lat - g.lat) < 0.95 + g.fast * 0.3 && Math.abs(it.y - g.y) < 1.15) {
             it.taken = true;
             const val = VALUE[it.kind] || 1;
             g.combo++; g.comboT = 1.1;
             if (val > 1) { sfx.big(); addStars(val, '+' + val, 'big'); } else { sfx.star(g.combo - 1); addStars(1); }
-            obj.position.y = g.y + 1.05;
+            it.over = g.y + 1.05; obj.position.y = g.roadY + it.over;
             if (obj.userData.collect) obj.userData.collect(); else { obj.visible = false; it.done = true; }
           }
         } else if (it.type === 'pigeon') {
@@ -779,7 +889,7 @@
             if (c.obj.userData.drive) c.obj.userData.drive(dt, (next - front) / Math.max(dt, 1e-4));
             c.u = next * c.dir;
             P.at(laneS[l], tmp2);
-            c.obj.position.set(tmp2.x + tmp2.nx * c.u, 0, tmp2.z + tmp2.nz * c.u);
+            c.obj.position.set(tmp2.x + tmp2.nx * c.u, tmp2.y, tmp2.z + tmp2.nz * c.u);
             c.obj.rotation.y = Math.atan2(tmp2.nx * c.dir, tmp2.nz * c.dir);
             if (next > 85) { scene.remove(c.obj); c.dead = true; }
           });
@@ -802,10 +912,10 @@
       if (dead) return;
       g.frontCam = true; g.frontT = 0;
       if (rider.pose) rider.pose('cheer');
-      sfx.schoolBell();
+      try { if (PL.own.sound) PL.own.sound(hook); else sfx.chime(); } catch (e) { console.error(e); }
       if (DU.app && DU.app.confetti) DU.app.confetti(150);
       await fade(0, 320);
-      say('<b>הגעת לבית הספר!</b>', 2000, 'title low');
+      say(`<b>${esc(texts.arrive)}</b>`, 2000, 'title low');
       await wait(2300);
       if (dead) return;
       result();
@@ -816,21 +926,24 @@
       const total = g.stars + 100 + careful;
       const rows = [
         [ico('star'), 'כוכבים בדרך', g.stars],
-        [ICON.school, 'הגעת לבית הספר', 100],
+        [PL.icon, esc(texts.row), 100],
       ];
       if (careful) rows.push([ICON.bike, g.bumps === 0 ? 'רכיבה מושלמת' : 'רכיבה זהירה', careful]);
+      const door = PL.id === 'school' && o.onSchool; // at the school she can go inside
+      const more = (o.onPlaces ? `<button class="btn white small" data-ride="places">${ICON.pin} מקום אחר</button>` : '') + (o.onGarage ? `<button class="btn white small" data-ride="garage">${DU.bike.icon('wrench')} לעצב את האופניים</button>` : '');
       panel.innerHTML = `
-        <div class="ride-card">
+        <div class="ride-card${door ? ' has-door' : ''}">
           <h2>איזו רכיבה!</h2>
           <div class="ride-rows">${rows.map((r) => `<div class="ride-row"><span class="i">${r[0]}</span><span class="l">${r[1]}</span><span class="p" dir="ltr">+${r[2]}</span></div>`).join('')}</div>
           <div class="ride-total">${ico('star')} <span dir="ltr">+${total}</span></div>
           ${g.polite ? `<p class="ride-note">${ICON.bell} צלצלת בנימוס ${g.polite} פעמים — כל הכבוד!</p>` : ''}
           ${g.top > CRUISE + 1.5 ? `<p class="ride-note">${ICON.rocket} הכי מהר שרכבת: <b dir="ltr">${Math.round(g.top * 3.6)}</b> קמ״ש</p>` : ''}
-          <div class="row"><button class="btn big" data-ride="home">${ico('home')} הביתה</button><button class="btn white" data-ride="again">${ICON.bike} עוד רכיבה</button></div>
-          ${o.onGarage ? `<div class="row tight"><button class="btn white small" data-ride="garage">${DU.bike.icon('wrench')} לעצב את האופניים</button></div>` : ''}
+          ${door ? `<div class="row"><button class="btn big ride-door" data-ride="school">${ICON.door} ${esc(texts.enter || 'להיכנס')}</button></div>` : ''}
+          <div class="row"><button class="btn ${door ? 'white' : 'big'}" data-ride="home">${ico('home')} הביתה</button><button class="btn white" data-ride="again">${ICON.bike} עוד רכיבה</button></div>
+          ${more ? `<div class="row tight">${more}</div>` : ''}
         </div>`;
       panel.className = 'ride-panel end'; panel.hidden = false; hud.classList.add('quiet');
-      if (o.onReward) { try { o.onReward(total, { stars: g.stars, bumps: g.bumps, polite: g.polite, top: g.top }); } catch (e) { console.error(e); } }
+      if (o.onReward) { try { o.onReward(total, { stars: g.stars, bumps: g.bumps, polite: g.polite, top: g.top, place: PL.id }); } catch (e) { console.error(e); } }
       DU.sound && DU.sound.play && DU.sound.play('buy');
     }
     function askExit() {
@@ -853,7 +966,9 @@
       el.remove(); if (veil.isConnected) veil.remove();
       DU.ride.live = null;
       if (again === 'garage' && o.onGarage) o.onGarage();
-      else if (again) DU.ride.start(Object.assign({}, o, { veil: null, run: (o.run || 0) + 1, bike: DU.bike.cur() }));
+      else if (again === 'places' && o.onPlaces) o.onPlaces(state);
+      else if (again === 'school' && o.onSchool) o.onSchool(state);
+      else if (again === true) DU.ride.start(Object.assign({}, o, { veil: null, run: (o.run || 0) + 1, bike: DU.bike.cur() })); // the same place once more
       else if (o.onExit) o.onExit();
     }
 
@@ -906,7 +1021,7 @@
       if (a === 'exit') askExit();
       else if (a === 'quit' || a === 'home') quit();
       else if (a === 'again') quit(true);
-      else if (a === 'garage') quit('garage');
+      else if (a === 'garage' || a === 'places' || a === 'school') quit(a);
       else if (a === 'resume') { g.paused = false; panel.hidden = true; loop.last = performance.now(); }
       else if (a === 'mute') { if (DU.app && DU.app.actions) DU.app.actions.mute(); b.innerHTML = ico(DU.sound && DU.sound.muted ? 'mute' : 'sound'); }
     });
@@ -930,7 +1045,8 @@
     }
     loop.last = performance.now();
 
-    api.debug = { g, input, scene, camera, renderer, things, crossings, get corners() { return corners; }, step: (dt) => update(dt), render: () => renderer.render(scene, camera), get P() { return P; }, get rider() { return rider; }, jump, bell };
+    api.place = PL.id;
+    api.debug = { g, input, scene, camera, renderer, things, crossings, place: PL.id, hook, get world() { return world; }, get corners() { return corners; }, step: (dt) => update(dt), render: () => renderer.render(scene, camera), get P() { return P; }, get rider() { return rider; }, jump, bell };
     build().catch(fail);
     return api;
   }
