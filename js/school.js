@@ -572,8 +572,14 @@
       return f;
     }
     const face = (f, eyes, mouth) => { DU.setEyes(f, eyes); DU.setMouth(f, mouth); };
-    const hop = (f, h, ms) => { if (!fast && !reduced) M.hop(f, h, ms); };
-    const strike = (f, pose, ms = 400, quiet) => DU.strike(f, poseOf(f._state, pose), { ms: T(ms), fxHost: fx, quiet: quiet || fast, upright: !!(f._state.wear || {}).side });
+    /* one hop at a time for each girl: quick taps must not start a second one in mid-air */
+    const midHop = (f) => performance.now() < (f._hopEnd || 0);
+    const hop = (f, h, ms) => { if (fast || reduced || midHop(f)) return; f._hopEnd = performance.now() + ms; M.hop(f, h, ms); };
+    const strike = (f, pose, ms = 400, quiet) => {
+      const p = poseOf(f._state, pose), q = !!(quiet || fast || midHop(f));
+      if (p.hop && !q && !reduced) f._hopEnd = performance.now() + 480;
+      return DU.strike(f, p, { ms: T(ms), fxHost: fx, quiet: q, upright: !!(f._state.wear || {}).side });
+    };
     const rest = (f, ms = 300) => { DU.pose(f, 'rest', T(ms)); face(f); };
     const burst = (f, opts) => { if (fast || reduced) return; const [x, y] = at(f, 0.5, 0.36); DU.fx.burst(fx, x, y, opts); };
     /* she steps from the back of the stage to the front, swinging her arms a little (they stay low: her hands may be full) */
@@ -790,7 +796,7 @@
         </div>
         <div class="sc-sum">
           <span>דירגת ${mates.length} עיצובים <b dir="ltr">+${rateGain}</b></span>
-          ${res.gain ? `<span>כוכבים מהכיתה <b dir="ltr">+${res.gain}</b></span>` : '<span class="soft">על העיצוב הזה כבר קיבלת היום כוכבים מהכיתה</span>'}
+          ${res.gain ? `<span>כוכבים מהכיתה <b dir="ltr">+${res.gain}</b></span>` : '<span class="soft">את הכוכבים מהכיתה כבר קיבלת בתצוגה הראשונה</span>'}
           <span class="sc-total">${starSvg()}<b dir="ltr">+${total}</b></span>
         </div>
         <div class="sc-end-btns"><button class="btn" data-sc="again">${ico('sparkle')}<span>עוד תצוגה</span></button><button class="btn white" data-sc="home">${ico('home')}<span>הביתה לחדר</span></button></div>
