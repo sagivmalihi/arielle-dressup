@@ -13,7 +13,12 @@
    lamps and furniture start at 6.6 m. On the bike-path stretches everything solid stays ≥ 4.2 m from the centre line,
    and ≥ 5.2 m around the school gate (no tree within 9 m there, so a finish arch fits). Tree crowns start above 4.3 m.
    Everything is generated in code: flat ground layers, extruded footprints with procedural facade tiles,
-   instanced trees. No shadow maps: soft "leafy shade" decals instead. */
+   instanced trees. No shadow maps: soft "leafy shade" decals instead.
+   What the data of another ride may add (ride-data-sarona.js, ride-data-yarkon.js): roadEnd (metres along: where the
+   car streets end; 545 on the ride to school), humps (where the raised crossings of the road stretch are),
+   keep ([x, z, radius]…: clearings where no tree may stand), buildings of kind 't' (a Templer house: h is the height
+   of the eaves, a red tiled roof goes on top; rf: 'hipped'), areas of kind 'river' (soft banks, no fountain) and 'lawn'
+   (open grass without trees). A ride longer than the one to school is dressed less deep to its sides (`thin`). */
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
@@ -90,6 +95,29 @@
       for (let i = 0; i < faces.length; i++) {
         const f = faces[i];
         this.ftri(contour[f[0]].x, contour[f[0]].y, contour[f[1]].x, contour[f[1]].y, contour[f[2]].x, contour[f[2]].y, y, col);
+      }
+    };
+    /* a very big flat polygon, cut into squares of `cell` metres. A triangle that is hundreds of metres long gets an
+       imprecise depth on some graphics chips, and then the wrong layer of the ground shows near the camera */
+    BP.polyCut = function (pts, y, col, cell) {
+      const clip = (poly, ax, v, sg) => { // keep the side where (p[ax] - v) * sg >= 0
+        const out = [];
+        for (let i = 0; i < poly.length; i++) {
+          const a = poly[(i + poly.length - 1) % poly.length], b = poly[i], ia = (a[ax] - v) * sg >= 0, ib = (b[ax] - v) * sg >= 0;
+          if (ia !== ib) { const t = (v - a[ax]) / (b[ax] - a[ax]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+          if (ib) out.push(b);
+        }
+        return out;
+      };
+      const all = [], bb = [1e9, 1e9, -1e9, -1e9];
+      for (let i = 0; i < pts.length; i += 2) { all.push([pts[i], pts[i + 1]]); bb[0] = Math.min(bb[0], pts[i]); bb[1] = Math.min(bb[1], pts[i + 1]); bb[2] = Math.max(bb[2], pts[i]); bb[3] = Math.max(bb[3], pts[i + 1]); }
+      for (let x = Math.floor(bb[0] / cell) * cell; x < bb[2]; x += cell) {
+        const strip = clip(clip(all, 0, x, 1), 0, x + cell, -1);
+        if (strip.length < 3) continue;
+        for (let z = Math.floor(bb[1] / cell) * cell; z < bb[3]; z += cell) {
+          const piece = clip(clip(strip, 1, z, 1), 1, z + cell, -1);
+          if (piece.length >= 3) this.poly([].concat(...piece), y, col);
+        }
       }
     };
     /* a box turned by ry around the vertical; colTop optional */
@@ -170,7 +198,9 @@
       return { d: Math.sqrt(best), s: bi, lat: (x - RX[bi]) * NX[bi] + (z - RZ[bi]) * NZ[bi] };
     }
     const at = (s, lat, out) => { path.at(s, out); out.x += out.nx * lat; out.z += out.nz * lat; return out; };
-    const ROAD_END = 545; // up to here the ride is on real roads (boulevard + Dubnov) with a parking strip
+    const ROAD_END = data.roadEnd || 545; // up to here the ride is on real roads with a parking strip (to school: boulevard + Dubnov)
+    /* a longer ride is dressed less deep to its sides, so every ride costs about the same to draw (1 on the ride to school) */
+    const thin = Math.max(1, LEN / 1050);
     const cross = data.cross || [];
     const PATH_START = cross.length ? cross[0].s1 + 1.5 : ROAD_END + 25;
     const inCross = (s) => cross.some((c) => s >= c.s0 - 0.5 && s <= c.s1 + 0.5);
@@ -265,7 +295,8 @@
       return false;
     }
     const waters = data.areas.filter((a) => a.k === 'water');
-    const inWater = (x, z) => waters.some((a) => inPoly(x, z, a.p));
+    const rivers = data.areas.filter((a) => a.k === 'river'); // wide water with soft banks and no fountain
+    const inWater = (x, z) => waters.some((a) => inPoly(x, z, a.p)) || rivers.some((a) => inPoly(x, z, a.p));
     /* may something tall stand here? */
     function free(x, z, margin, roadGap) {
       const r = routeNear(x, z);
@@ -342,7 +373,8 @@
     })();
 
     /* ---------- ground layers ---------- */
-    const ground = new T.Mesh(new T.PlaneGeometry(6000, 6000), own(new T.MeshLambertMaterial({ color: PAL.pavement })));
+    // in squares of 125 m, not two triangles of 6 km: see polyCut
+    const ground = new T.Mesh(new T.PlaneGeometry(6000, 6000, 48, 48), own(new T.MeshLambertMaterial({ color: PAL.pavement })));
     owned.geoms.push(ground.geometry);
     ground.rotation.x = -Math.PI / 2;
     root.add(ground);
@@ -362,18 +394,39 @@
       for (let j = 0; j < o.p.length; j += 2) q.push(c[0] + (o.p[j] - c[0]) * f, c[1] + (o.p[j + 1] - c[1]) * f);
       L_area.poly(q, 0.012, C(hash(o.i, 3) ? PAL.grass : PAL.grassDark));
     });
+    /* a river: soft green banks, and pale and deep streaks that follow the stream */
+    function riverLook(a) {
+      const q = a.p, n = q.length / 2, bank = C('#b9dd95'), pale = C('#c4ebfa'), deep = C(PAL.waterDeep);
+      for (let j = 0; j < n; j++) { const k = (j + 1) % n; L_area.ribbon([q[j * 2], q[j * 2 + 1], q[k * 2], q[k * 2 + 1]], 2.4, 0.034, bank, 6); }
+      const bb = bboxOf(q), r2 = K.rng(909);
+      for (let t = 0; t < 520; t++) {
+        const x = bb[0] + (bb[2] - bb[0]) * r2(), z = bb[1] + (bb[3] - bb[1]) * r2();
+        if (!inPoly(x, z, q) || routeNear(x, z).d > 330) continue;
+        let best = 1e9, dx = 1, dz = 0; // the nearest bank gives the direction of the stream
+        for (let j = 0; j < n; j++) {
+          const k = (j + 1) % n, d = dseg(x, z, q[j * 2], q[j * 2 + 1], q[k * 2], q[k * 2 + 1]);
+          if (d < best) { best = d; const l = Math.hypot(q[k * 2] - q[j * 2], q[k * 2 + 1] - q[j * 2 + 1]) || 1; dx = (q[k * 2] - q[j * 2]) / l; dz = (q[k * 2 + 1] - q[j * 2 + 1]) / l; }
+        }
+        if (best < 2.5) continue;
+        const mid = best > 11;
+        L_paint.frect(x, z, dx, dz, mid ? 6 + r2() * 9 : 2 + r2() * 3.5, mid ? 0.5 + r2() * 0.5 : 0.22, 0.04, mid && r2() < 0.6 ? deep : pale);
+      }
+    }
     const AREA = {
       park: [PAL.grass, 0.02], grass: [PAL.grassDark, 0.018], play: [PAL.sand, 0.026], pitch: ['#7fc98a', 0.028], parking: [PAL.asphaltDark, 0.024],
       water: [PAL.water, 0.032], plaza: [PAL.plaza, 0.021], yard: ['#f3e3bd', 0.022], school: ['#fbe7a8', 0.025],
+      river: [PAL.water, 0.03], lawn: ['#b4e68c', 0.019],
     };
     data.areas.forEach((a, ai) => {
       const st = AREA[a.k];
       if (!st) return;
-      L_area.poly(a.p, st[1], C(st[0]));
+      if (a.k === 'river' || Math.abs(areaOf(a.p)) > 20000) L_area.polyCut(a.p, st[1], C(st[0]), 48); // a wide lawn, a river
+      else L_area.poly(a.p, st[1], C(st[0]));
       if (a.k === 'water') { // a pale rim
         const q = a.p;
         for (let j = 0; j < q.length; j += 2) { const k = (j + 2) % q.length; L_area.ribbon([q[j], q[j + 1], q[k], q[k + 1]], 0.7, 0.036, C('#f4efe2'), 6); }
       }
+      if (a.k === 'river') riverLook(a);
       if (a.k === 'pitch') { const c = centroid(a.p); L_paint.fdisc(c[0], c[1], 2.2, 0.03, C('#a9dfb0'), 14); }
       if (a.k === 'parking' && near(a.p, 140)) { // a few bay lines
         const bb = bboxOf(a.p);
@@ -459,8 +512,12 @@
     // the bike-path stretches: a wide green way with white edges, a dashed middle and bicycle marks
     const RAINBOW = ['#ff8fa8', '#ffb46b', '#ffe07a', '#9be08f', '#8fd3ff', '#c3a6ff'];
     const pathBits = [];
-    let ps = PATH_START;
-    cross.slice(1).forEach((c) => { pathBits.push([ps, c.s0 - 6]); ps = c.s1 + 2; });
+    let ps = cross.length ? ROAD_END + 1 : PATH_START;
+    cross.forEach((c) => { // a crossing cuts the path; one that lies on the road stretch does not
+      if (c.s1 < ROAD_END) return;
+      if (c.s0 - 6 > ps) pathBits.push([ps, c.s0 - 6]);
+      ps = c.s1 + (c.s0 < ROAD_END + 6 ? 1.5 : 2);
+    });
     pathBits.push([ps, GATE_S]);
     pathBits.forEach(([a, b]) => {
       stripe(a, b, -3.8, 3.8, 0.095, C(PAL.bikeLane));
@@ -491,7 +548,7 @@
     }
     pathBits.forEach(([a, b]) => { for (let s = a + 14; s < b - 10; s += 46) { bikeMark(s, -1.9); bikeMark(s + 23, 1.9); } });
     for (let s = 74; s < ROAD_END - 40; s += 78) bikeMark(s, 0);
-    [198, 404].forEach((s0) => {
+    (data.humps || [198, 404]).forEach((s0) => { // raised crossings on the road stretch
       stripe(s0, s0 + 3.2, -3.8, 3.8, 0.093, C(PAL.asphaltDark));
       for (let i = 0; i < 7; i++) {
         const l = -3.3 + i * 1.1;
@@ -575,6 +632,18 @@
       },
       // public buildings: pale stone, tall windows
       p1: (ctx) => { wallBase(ctx, 256, 256); ctx.fillStyle = 'rgba(150,135,110,.06)'; ctx.fillRect(0, 126, 256, 3); glass(ctx, 96, 44, 64, 176, '#93c4e0', '#6a9fc4'); frame(ctx, 96, 44, 64, 176); },
+      // the old Templer houses of Sarona: stone courses, a tall window between green wooden shutters
+      t1: (ctx) => {
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 256);
+        ctx.strokeStyle = 'rgba(150,125,90,.16)'; ctx.lineWidth = 2;
+        for (let y = 0, r = 0; y < 256; y += 32, r++) { ctx.beginPath(); ctx.moveTo(0, y + 1); ctx.lineTo(256, y + 1); for (let x = r % 2 ? 32 : 0; x < 256; x += 64) { ctx.moveTo(x + 1, y); ctx.lineTo(x + 1, y + 32); } ctx.stroke(); }
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(52, 40, 152, 176);
+        ctx.fillStyle = 'rgba(160,135,95,.3)'; ctx.fillRect(84, 46, 88, 12);
+        glass(ctx, 96, 62, 64, 132, '#8fbfdc', '#5f93b8'); frame(ctx, 96, 62, 64, 132);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(128, 62); ctx.lineTo(128, 194); ctx.moveTo(96, 106); ctx.lineTo(160, 106); ctx.stroke();
+        slats(ctx, 58, 60, 34, 136, '#63ad6f', '#3f8a52'); slats(ctx, 164, 60, 34, 136, '#63ad6f', '#3f8a52');
+        sill(ctx, 92, 198, 72);
+      },
     };
     const SCHOOL_TILE = (ctx) => { // two bays, happy frames
       ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 512, 256);
@@ -622,6 +691,41 @@
       }
     }
     const RES = ['h1', 'h2', 'h3', 'h5', 'h1', 'h2', 'h4'];
+    const TEMPLER = ['#f7ecd0', '#f3e4c2', '#f9f0da'], ROOFTILE = ['#d9634a', '#cf5a42', '#e0705a'];
+    /* a red tiled roof for a Templer house: the upright box that fits the footprint best, eaves that hang over it,
+       two slopes with gables (or four slopes when o.rf is 'hipped'), a chimney */
+    function tileRoof(o, wall) {
+      const q = o.p, n = q.length / 2;
+      let bl = 0, ax = 1, az = 0; // along the longest wall
+      for (let j = 0; j < n; j++) { const k = (j + 1) % n, dx = q[k * 2] - q[j * 2], dz = q[k * 2 + 1] - q[j * 2 + 1], l = Math.hypot(dx, dz); if (l > bl) { bl = l; ax = dx / l; az = dz / l; } }
+      const span = () => { const b = [1e9, 1e9, -1e9, -1e9]; for (let j = 0; j < n; j++) { const u = q[j * 2] * ax + q[j * 2 + 1] * az, v = -q[j * 2] * az + q[j * 2 + 1] * ax; b[0] = Math.min(b[0], u); b[1] = Math.min(b[1], v); b[2] = Math.max(b[2], u); b[3] = Math.max(b[3], v); } return b; };
+      let b = span();
+      if (b[3] - b[1] > b[2] - b[0]) { const t = ax; ax = -az; az = t; b = span(); } // the ridge runs along the long side
+      const OV = 0.55, hl = (b[2] - b[0]) / 2 + OV, hw = (b[3] - b[1]) / 2 + OV, cu = (b[0] + b[2]) / 2, cv = (b[1] + b[3]) / 2;
+      const ye = o.h + 0.14, rh = Math.min(3.4, hw * 0.66), hip = o.rf === 'hipped' ? Math.min(hl * 0.75, hw) : 0;
+      const W = (u, v, y) => [(cu + u) * ax - (cv + v) * az, y, (cu + u) * az + (cv + v) * ax];
+      const unit = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+      const col = C(ROOFTILE[hash(o.i, ROOFTILE.length)]), ry = Math.atan2(-az, ax);
+      const A = W(-hl, -hw, ye), Bq = W(hl, -hw, ye), Cq = W(hl, hw, ye), D = W(-hl, hw, ye), R0 = W(-hl + hip, 0, ye + rh), R1 = W(hl - hip, 0, ye + rh);
+      const c0 = W(0, 0, o.h + 0.07);
+      solid.box(c0[0], c0[1], c0[2], hl * 2, 0.14, hw * 2, mix(wall, WHITE, 0.5), ry); // the board under the eaves
+      solid.quad(A, Bq, R1, R0, unit(az * rh, hw, -ax * rh), col);
+      solid.quad(D, Cq, R1, R0, unit(-az * rh, hw, ax * rh), mul(col, 0.94));
+      if (hip) {
+        solid.tri(A[0], A[1], A[2], D[0], D[1], D[2], R0[0], R0[1], R0[2], ...unit(-ax * rh, hip, -az * rh), mul(col, 0.9));
+        solid.tri(Bq[0], Bq[1], Bq[2], Cq[0], Cq[1], Cq[2], R1[0], R1[1], R1[2], ...unit(ax * rh, hip, az * rh), mul(col, 0.9));
+      } else { // gables in the stone of the walls, a little green shutter under the ridge
+        [[-1, A, D, R0], [1, Bq, Cq, R1]].forEach(([sg, p1, p2, top]) => {
+          solid.tri(p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], top[0], top[1], top[2], ax * sg, 0, az * sg, wall);
+          const w = W(sg * (hl + 0.02), 0, ye + rh * 0.36);
+          solid.box(w[0], w[1], w[2], 0.08, Math.min(0.9, rh * 0.36), 0.6, C('#63ad6f'), ry);
+        });
+      }
+      const rc = W(0, 0, ye + rh + 0.04);
+      solid.box(rc[0], rc[1], rc[2], (hl - hip) * 2 + 0.2, 0.14, 0.3, mul(col, 0.82), ry); // the ridge
+      const ch = W((hl - hip) * 0.45, hw * 0.3, ye + rh * 0.7 + 0.45);
+      solid.box(ch[0], ch[1], ch[2], 0.6, 1.3, 0.6, wall, ry, mul(col, 0.82));
+    }
     const balconyPlants = [];
     const SCHOOLC = ['#fff3c4', '#ffd9e6', '#d9f3ff', '#e2f7d5'];
     B.forEach((o) => {
@@ -660,12 +764,13 @@
       else if (o.k === 'o') { up = tall ? (hash(o.i, 3) ? 'o1' : 'o3') : hash(o.i, 2) ? 'o2' : 'o1'; gr = 'og'; tint = tall ? C(['#ffffff', '#eaf6fb', '#f3f1ea'][hash(o.i + 5, 3)]) : C(PAL.wall[hash(o.i, PAL.wall.length)]); gh = 4.4; bay = 3.1; }
       else if (o.k === 'p') { up = 'p1'; gr = 'p1'; tint = C(['#fbf7ee', '#f3efe6', '#fdfaf4'][hash(o.i, 3)]); gh = 4.2; bay = 3.6; }
       else if (o.k === 's') { up = 'g2'; gr = 'g2'; tint = C(PAL.wall[hash(o.i, PAL.wall.length)]); gh = o.h; bay = 3.4; }
+      else if (o.k === 't') { up = 't1'; gr = 't1'; tint = C(TEMPLER[hash(o.i, TEMPLER.length)]); gh = o.h / Math.max(1, Math.round(o.h / FLOOR)); bay = 3.6; } // h = up to the eaves
       else { up = RES[hash(o.i, RES.length)]; gr = hash(o.i + 3, 5) < 3 ? 'g1' : 'g2'; tint = mix(C(PAL.wall[hash(o.i + 1, PAL.wall.length)]), WHITE, 0.45); gh = 3.3; bay = 3.5; }
       const top = o.h, base = o.base;
       gh = Math.min(gh, top - base);
       if (base > 0.5) gh = 0; // parts that start high have no ground floor
       const nf = Math.max(0, Math.round((top - base - gh) / FLOOR));
-      const closeUp = !low ? o.rd < 60 : o.rd < 32;
+      const closeUp = !low ? o.rd < 60 / thin : o.rd < 32;
       for (let j = 0; j < n; j++) {
         const k = (j + 1) % n, ax = q[j * 2], az = q[j * 2 + 1], bx = q[k * 2], bz = q[k * 2 + 1];
         const L = Math.hypot(bx - ax, bz - az);
@@ -696,8 +801,8 @@
       }
       // the roof, a low parapet line, things on it
       const roofC = tall ? C('#dfe7ec') : mix(C(PAL.roof), tint, 0.4);
-      solid.poly(q, top, roofC);
-      if (o.k === 'h' && !o.inSchool && o.rd < 105 && !low) {
+      if (o.k === 't') tileRoof(o, tint); else solid.poly(q, top, roofC);
+      if (o.k === 'h' && !o.inSchool && o.rd < 105 / thin && !low) {
         const bb = o.bb, cnt = 1 + hash(o.i, 3);
         for (let t = 0, placed = 0; t < 12 && placed < cnt; t++) {
           const x = rr(bb[0] + 1.5, bb[2] - 1.5), z = rr(bb[1] + 1.5, bb[3] - 1.5);
@@ -714,7 +819,7 @@
     const treeSpots = new Grid();
     const crowded = (x, z, r) => { const l = treeSpots.at(x, z); for (let i = 0; i < l.length; i++) if (Math.hypot(l[i][0] - x, l[i][1] - z) < r) return true; return false; };
     const reserve = (x, z) => treeSpots.add(x - 4.5, z - 4.5, x + 4.5, z + 4.5, [x, z]);
-    const keepOut = [];
+    const keepOut = (data.keep || []).map((k) => k.slice()); // [x, z, radius]: no tree may stand here (the data may ask for clearings)
     /* how close to the centre line anything solid may reach */
     const hard = (s) => (s < ROAD_END + 3 ? 6.15 : s > GATE_S - 16 ? 5.0 : 3.85);
 
@@ -1046,7 +1151,7 @@
       if (!(rd.k === 'R' || rd.k === 'T' || rd.k === 'A')) return;
       const q = rd.p, palmy = rd.k !== 'R' && rd.n && /שדרות|שאול|קפלן/.test(rd.n);
       let carry = rr(2, 8);
-      const step = (low ? 24 : 13) * (rd.k === 'A' ? 1.2 : 1);
+      const step = (low ? 24 : 13) * (rd.k === 'A' ? 1.2 : 1) * thin;
       for (let j = 0; j + 3 < q.length; j += 2) {
         const L = Math.hypot(q[j + 2] - q[j], q[j + 3] - q[j + 1]);
         if (L < 0.1) continue;
@@ -1055,7 +1160,7 @@
         for (; d < L; d += step * rr(0.8, 1.25)) {
           const x = q[j] + dx * d, z = q[j + 1] + dz * d;
           const r = routeNear(x, z);
-          if (r.d > 200 || (r.d > 110 && rnd() < 0.45)) continue;
+          if (r.d > 200 / thin || (r.d > 110 / thin && rnd() < 0.45)) continue;
           for (let sg = -1; sg <= 1; sg += 2) {
             const off = rd.w / 2 + rr(1.5, 2.3), tx = x - dz * off * sg, tz = z + dx * off * sg;
             if (free(tx, tz, 0.5, 1.0)) tree(tx, tz, palmy && rnd() < 0.55 ? 4 : streetKind());
@@ -1069,8 +1174,8 @@
     const FLOWER = ['#ff8fc0', '#ffd54d', '#c79bff', '#ff9d4d', '#ffffff', '#ff6b8f'];
     data.areas.forEach((a) => {
       if (a.k !== 'park' && a.k !== 'grass') return;
-      if (!near(a.p, 210)) return;
-      const bb = bboxOf(a.p), ar = Math.abs(areaOf(a.p)), close = near(a.p, 110);
+      if (!near(a.p, 210 / thin)) return;
+      const bb = bboxOf(a.p), ar = Math.abs(areaOf(a.p)), close = near(a.p, 110 / thin);
       const nT = Math.min(low ? 40 : close ? 85 : 45, Math.round(ar / (a.k === 'park' ? 85 : 150)));
       for (let t = 0, placed = 0; t < nT * 6 && placed < nT; t++) {
         const x = rr(bb[0], bb[2]), z = rr(bb[1], bb[3]);
@@ -1089,11 +1194,11 @@
     });
     // bougainvillea and hedges along the garden fronts of the homes near the route
     if (!low) B.forEach((o) => {
-      if (o.far || o.k !== 'h' || o.rd > 42 || o.inSchool) return;
+      if (o.far || o.k !== 'h' || o.rd > 42 / thin || o.inSchool) return;
       const q = o.p, n = q.length / 2, ccw = areaOf(q) > 0;
       for (let j = 0; j < n; j++) {
         const k = (j + 1) % n, ax = q[j * 2], az = q[j * 2 + 1], bx = q[k * 2], bz = q[k * 2 + 1], L = Math.hypot(bx - ax, bz - az);
-        if (L < 4 || routeNear((ax + bx) / 2, (az + bz) / 2).d > 30) continue;
+        if (L < 4 || routeNear((ax + bx) / 2, (az + bz) / 2).d > 30 / thin) continue;
         let nx = (bz - az) / L, nz = -(bx - ax) / L;
         if (!ccw) { nx = -nx; nz = -nz; }
         for (let d = rr(0.5, 2); d < L; d += rr(2.2, 4.2)) {
