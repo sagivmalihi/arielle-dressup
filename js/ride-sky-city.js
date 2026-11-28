@@ -141,8 +141,14 @@
     /* ---------- the fountain: a golden egg in a round pool, beyond the end of the road ---------- */
     (function fountain() {
       const f = 9.5;
-      put([tpl([K.g(new T.TorusGeometry(3.0, 0.42, 6, 16), '#fff3dc', 0, 0.35, 0, PI / 2), gcyl('#ffe2ec', 0, 0.7, 0, 0.9, 1.2, 1.4, 8), K.g(new T.SphereGeometry(1, 10, 7), '#ffd35a', 0, 2.45, 0, 0, 0, 0, 1.0, 1.35, 1.0), gs('#ffffff', 0.5, 2.9, 0.75, 0.25, 0.25, 0.12, 6, 3), gs('#ffffff', -0.62, 2.3, 0.72, 0.2, 0.2, 0.1, 6, 3), gs('#ffffff', 0.1, 1.9, 0.98, 0.16, 0.16, 0.08, 6, 3)]),
-        tpl([K.g(new T.CircleGeometry(2.95, 16), '#9fe4f6', 0, 0.5, 0, -PI / 2), ...[0, 1, 2, 3, 4, 5].map((i) => { const a = (i / 6) * TAU; return sweep([[Math.cos(a) * 0.9, 1.4, Math.sin(a) * 0.9], [Math.cos(a) * 1.6, 1.75, Math.sin(a) * 1.6], [Math.cos(a) * 2.2, 0.6, Math.sin(a) * 2.2]], [0.09, 0.07, 0.05], '#d8f6ff', 4, 3); })])], f, 0, 0, 0, 1);
+      const stone = [
+        K.g(new T.TorusGeometry(3.0, 0.42, 6, 16), '#fff3dc', 0, 0.35, 0, PI / 2), gcyl('#ffe2ec', 0, 0.7, 0, 0.9, 1.2, 1.4, 8),
+        K.g(new T.SphereGeometry(1, 10, 7), '#ffd35a', 0, 2.45, 0, 0, 0, 0, 1.0, 1.35, 1.0),
+        gs('#ffffff', 0.5, 2.9, 0.75, 0.25, 0.25, 0.12, 6, 3), gs('#ffffff', -0.62, 2.3, 0.72, 0.2, 0.2, 0.1, 6, 3), gs('#ffffff', 0.1, 1.9, 0.98, 0.16, 0.16, 0.08, 6, 3),
+      ];
+      // the water glows: the pool, and six jets that arch out from under the egg
+      const jets = [0, 1, 2, 3, 4, 5].map((i) => { const a = (i / 6) * TAU, c = Math.cos(a), s = Math.sin(a); return sweep([[c * 0.9, 1.4, s * 0.9], [c * 1.6, 1.75, s * 1.6], [c * 2.2, 0.6, s * 2.2]], [0.09, 0.07, 0.05], '#d8f6ff', 4, 3); });
+      put([tpl(stone), tpl([K.g(new T.CircleGeometry(2.95, 16), '#9fe4f6', 0, 0.5, 0, -PI / 2), ...jets])], f, 0, 0, 0, 1);
       solid.push([f, 0, 4.5]);
     })();
 
@@ -156,7 +162,13 @@
       };
       // poles round the square with a star on each, and the strings from pole to pole
       const poles = [];
-      for (let i = 0; i < 10; i++) { const deg = 18 + i * 36, [f, r] = ring(SQ.r + 1.6, deg); if (Math.abs(r) < 6.5) continue; lam.add(tpl([gcyl('#f3ecff', 0, 3.3, 0, 0.09, 0.13, 6.6, 5), gcyl('#ffd35a', 0, 0.15, 0, 0.2, 0.28, 0.3, 6)]), X(f, r), top, Z(f, r), 0, 1); lit.add(STAR, X(f, r), top + 6.9, Z(f, r), E.ry, 1.1); poles.push([X(f, r), top + 6.5, Z(f, r)]); solid.push([f, r, 1]); }
+      const pole = tpl([gcyl('#f3ecff', 0, 3.3, 0, 0.09, 0.13, 6.6, 5), gcyl('#ffd35a', 0, 0.15, 0, 0.2, 0.28, 0.3, 6)]);
+      for (let i = 0; i < 10; i++) {
+        const [f, r] = ring(SQ.r + 1.6, 18 + i * 36);
+        if (Math.abs(r) < 6.5) continue; // not in her way in, nor before the stair
+        lam.add(pole, X(f, r), top, Z(f, r), 0, 1); lit.add(STAR, X(f, r), top + 6.9, Z(f, r), E.ry, 1.1);
+        poles.push([X(f, r), top + 6.5, Z(f, r)]); solid.push([f, r, 1]);
+      }
       for (let i = 0; i < poles.length; i++) string(poles[i], poles[(i + 1) % poles.length], 1.2);
       // and two long ones from the gate towers
       const g = M.gate - L; [-1, 1].forEach((sd) => { const [f, r] = ring(SQ.r + 1.6, sd * 126); string([X(g, sd * 7.6), top + 11.5, Z(g, sd * 7.6)], [X(f, r), top + 6.5, Z(f, r)], 1.6); });
@@ -176,7 +188,11 @@
       stand('unicorn', { seed: 0, size: 1.25 }, -8.5, 9.6, {}); stand('unicorn', { seed: 2, size: 1.25, wings: true }, -6, -9.8, {});
       solid.push([-8.5, 9.6, 2], [-6, -9.8, 2]);
       // more of them look on from between the houses
-      [['stego', 2, -124, 5], ['trike', 3, 57, 5], ['bronto', 0, 21, 13], ['unicorn', 1, 124, 5], ['trex', 3, -91, 5]].forEach(([kind, seed, deg, out]) => { const [f, r] = ring(SQ.r + out, deg); crowd(kind, { seed, size: kind === 'bronto' ? 1.2 : kind === 'trex' ? 0.8 : 1 }, SK, X(f, r), top + hillAt(f, r), Z(f, r), faceTo(f, r, look[0], look[1])); solid.push([f, r, 3.5]); });
+      [['stego', 2, -124, 5], ['trike', 3, 57, 5], ['bronto', 0, 21, 13], ['unicorn', 1, 124, 5], ['trex', 3, -91, 5]].forEach(([kind, seed, deg, out]) => {
+        const [f, r] = ring(SQ.r + out, deg);
+        crowd(kind, { seed, size: kind === 'bronto' ? 1.2 : kind === 'trex' ? 0.8 : 1 }, SK, X(f, r), top + hillAt(f, r), Z(f, r), faceTo(f, r, look[0], look[1]));
+        solid.push([f, r, 3.5]);
+      });
       // pterodactyls circle the palace
       const pc = kit.info.palace;
       [0, 1].forEach((i) => actor('ptero', { seed: i + 1, size: 1.5, y: 0, flap: 0.35, shadow: false }, pc.x, pc.y, pc.z, 0, { s: L, range: 300, back: 200, watch: false,

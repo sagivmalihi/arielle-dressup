@@ -50,12 +50,22 @@
       return tpl(parts);
     });
     const BUSHES = ['#9fe08a', '#a9ecd0', '#ffc1dd'].map((col) => tpl([ico(col, 0, 0.5, 0, 0.9, 0.7, 0.9), ico(tint(col, '#ffffff', 0.25), 0.7, 0.35, 0.3, 0.6, 0.5, 0.6), ico(tint(col, '#3a8a5a', 0.12), -0.6, 0.35, -0.2, 0.62, 0.5, 0.62)]));
-    const FLOWERS = ['#ff9fcb', '#ffe066', '#ffffff', '#b79cff', '#ff7b8a', '#6fb8ff'].map((col) => tpl([K.g(new T.ConeGeometry(0.035, 0.34, 3, 1, true), '#7fd08a', 0, 0.17, 0), K.g(new T.OctahedronGeometry(1), col, 0, 0.36, 0, 0, 0, 0, 0.17, 0.1, 0.17, true), K.g(new T.OctahedronGeometry(1), '#ffe066', 0, 0.43, 0, 0, 0, 0, 0.06, 0.05, 0.06, true)]));
+    const FLOWERS = ['#ff9fcb', '#ffe066', '#ffffff', '#b79cff', '#ff7b8a', '#6fb8ff'].map((col) => tpl([
+      K.g(new T.ConeGeometry(0.035, 0.34, 3, 1, true), '#7fd08a', 0, 0.17, 0),
+      K.g(new T.OctahedronGeometry(1), col, 0, 0.36, 0, 0, 0, 0, 0.17, 0.1, 0.17, true), K.g(new T.OctahedronGeometry(1), '#ffe066', 0, 0.43, 0, 0, 0, 0, 0.06, 0.05, 0.06, true),
+    ]));
     const ROCKS = ['#cfc6f0', '#e6d2c0'].map((col) => tpl([ico(col, 0, 0.35, 0, 0.8, 0.5, 0.7), ico(tint(col, '#8f84c8', 0.25), 0.55, 0.22, 0.25, 0.45, 0.32, 0.45)]));
     const CRYSTAL = ['#9fe6ff', '#ffc1f0', '#d9c8ff'].map((col) => tpl([K.g(new T.OctahedronGeometry(1), col, 0, 0, 0, 0, 0, 0, 0.45, 1.3, 0.45, true), K.g(new T.OctahedronGeometry(1), tint(col, '#ffffff', 0.4), 0.45, -0.2, 0.2, 0, 0, 0.35, 0.28, 0.8, 0.28, true)]));
     /* a lantern on a bent post: its star glows (the star is a separate template, for the glowing mesh) */
     const POST = tpl([sweep([[0, 0, 0], [0, 2.6, 0], [0.5, 3.5, 0], [1.0, 3.3, 0]], [0.1, 0.08, 0.06, 0.05], '#f3ecff', 5, 3), gcyl('#ffd35a', 0, 0.12, 0, 0.16, 0.22, 0.24, 6)]);
-    const STAR = (() => { const sh = new T.Shape(); for (let i = 0; i < 10; i++) { const a = (i * PI) / 5, r = i % 2 ? 0.2 : 0.45; sh[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, Math.cos(a) * r); } sh.closePath(); const e = new T.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 1, curveSegments: 1 }); e.translate(0, 0, -0.06); return tpl([K.g(e, '#ffe680')]); })();
+    const STAR = (() => {
+      const sh = new T.Shape();
+      for (let i = 0; i < 10; i++) { const a = (i * PI) / 5, r = i % 2 ? 0.2 : 0.45; sh[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, Math.cos(a) * r); }
+      sh.closePath();
+      const e = new T.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 1, curveSegments: 1 });
+      e.translate(0, 0, -0.06);
+      return tpl([K.g(e, '#ffe680')]);
+    })();
 
     const dripGeo = tpl([gs('#ff9fcb', 0, 0, 0, 0.5, 1, 0.5, 7, 5)]); // a drop of icing
     /* a shelf of rock with grass on it: 1 m to each side (stretched when stamped), 3.5 m deep, its top at y = 0 */
@@ -140,6 +150,18 @@
       return out;
     }
 
+    /* small islands beside the road, with what grows on them. list: [s, lat, up, radius, waterfall?] → where each one is */
+    function isles(list, seed, look) {
+      return list.map(([s, lat, up, r, fall], i) => {
+        const q = spot(s, lat, up, r), il = island(s, q.x, q.y, q.z, r, Object.assign({ seed: seed + i }, look));
+        plant(il, Math.round(r * 0.55), ['tree', 'palm', 'tree', 'mushroom'], { road: false, k1: 0.8 });
+        plant(il, Math.round(r * 0.8), ['flower', 'bush', 'flower', 'rock'], { road: false });
+        // its waterfall pours off the side that faces the road
+        if (fall) { const a = Math.atan2(-q.nz * Math.sign(lat), -q.nx * Math.sign(lat)) + rr(-0.5, 0.5), e = il.at(a, 0.98); waterfall(s, e[0], q.y, e[1], Math.cos(a), Math.sin(a), r * 0.16 + 1); }
+        return q;
+      });
+    }
+
     /* ---------- water ---------- */
     const waterTex = K.canvasTex(64, 128, (ctx) => {
       ctx.fillStyle = '#8fdcf4'; ctx.fillRect(0, 0, 64, 128);
@@ -160,6 +182,7 @@
       // the stream on the island that feeds it, and the foam where it lands
       const pond = soupAt(sKey, 'lit', layer), wc = C('#9fe4f6'), bx = x - dx * 0.2, bz = z - dz * 0.2, ex = x - dx * w * 1.6, ez = z - dz * w * 1.6;
       pond.quad([bx + nx, y + 0.05, bz + nz], [bx - nx, y + 0.05, bz - nz], [ex - nx * 0.6, y + 0.05, ez - nz * 0.6], [ex + nx * 0.6, y + 0.05, ez + nz * 0.6], wc);
+      for (let i = 0; i < 8; i++) { const a0 = (i / 8) * TAU, a1 = ((i + 1) / 8) * TAU, r = w * 0.62; pond.tri([ex, y + 0.05, ez], [ex + Math.cos(a1) * r, y + 0.05, ez + Math.sin(a1) * r], [ex + Math.cos(a0) * r, y + 0.05, ez + Math.sin(a0) * r], wc); } // the spring it comes from
       const f = pt(N);
       cloud(soupAt(sKey, 'lit', 'above'), f[0], DECK + 0.4, f[2], 8 + w * 1.6, rnd, 'half', sKey, 0.5);
     }
@@ -266,7 +289,8 @@
       const pd = P(M.corner + 12, 24, 0), ang = Math.atan2(pd.z - c.z, pd.x - c.x), edge = isl.at(ang, 0.985);
       pond(isl, pd.x, pd.z, 6.5);
       waterfall(SK, edge[0], top, edge[1], Math.cos(ang), Math.sin(ang), 4.2);
-      soupAt(SK, 'lit').quad([pd.x + Math.sin(ang) * 1.6, top + 0.05, pd.z - Math.cos(ang) * 1.6], [pd.x - Math.sin(ang) * 1.6, top + 0.05, pd.z + Math.cos(ang) * 1.6], [edge[0] - Math.sin(ang) * 1.3, top + 0.05, edge[1] + Math.cos(ang) * 1.3], [edge[0] + Math.sin(ang) * 1.3, top + 0.05, edge[1] - Math.cos(ang) * 1.3], C('#9fe4f6'));
+      const sx = Math.sin(ang), sz = -Math.cos(ang), yw = top + 0.05; // across the stream
+      soupAt(SK, 'lit').quad([pd.x + sx * 1.6, yw, pd.z + sz * 1.6], [pd.x - sx * 1.6, yw, pd.z - sz * 1.6], [edge[0] - sx * 1.3, yw, edge[1] - sz * 1.3], [edge[0] + sx * 1.3, yw, edge[1] + sz * 1.3], C('#9fe4f6'));
       const avoid = [[pd.x, pd.z, 8.5]];
       // who lives here. The long-neck stands where the road points before the bend, so she rides straight at it.
       const lb = P(M.corner + 6, -17, 0), look = P(M.corner - 6, 0, 0);
@@ -277,20 +301,19 @@
       const sg = P(in1 - 24, -9.5, 0); actor('stego', { seed: 2 }, sg.x, top, sg.z, facing(sg, P(in1 - 34, 0, 0)), { s: in1 - 24, still: true }); avoid.push([sg.x, sg.z, 5]);
       const rx = P(in1 - 12, 9.5, 0); actor('trex', { seed: 0, size: 0.8 }, rx.x, top, rx.z, facing(rx, P(in1 - 22, 0, 0)), { s: in1 - 12, still: true, tick(obj, dt, t, sNow) { if (Math.abs(sNow - (in1 - 24)) < 14) obj.userData.wave(1); } }); avoid.push([rx.x, rx.z, 3.5]);
       // nests beside the road
-      [[in0 + 7, -7.4], [M.corner + 26, 7.6], [in1 - 7, -7.2]].forEach(([s, lat], i) => { const q = P(s, lat, 0); for (let k = 0; k < 3; k++) { const a = k * 2.1 + i; soupAt(SK, 'lam').add(S.eggGeo(i + k, k === 0), q.x + Math.cos(a) * (k ? 1.0 : 0), top, q.z + Math.sin(a) * (k ? 1.0 : 0), a, k === 0 ? 1.15 : 0.85); } avoid.push([q.x, q.z, 2.2]); });
+      [[in0 + 7, -7.4], [M.corner + 26, 7.6], [in1 - 7, -7.2]].forEach(([s, lat], i) => {
+        const q = P(s, lat, 0);
+        for (let k = 0; k < 3; k++) { const a = k * 2.1 + i, d = k ? 1 : 0; soupAt(SK, 'lam').add(S.eggGeo(i + k, k === 0), q.x + Math.cos(a) * d, top, q.z + Math.sin(a) * d, a, k === 0 ? 1.15 : 0.85); }
+        avoid.push([q.x, q.z, 2.2]);
+      });
       plant(isl, 26, ['tree', 'tree', 'palm'], { k0: 0.35, avoid, clear: 9 });
       plant(isl, 16, ['mushroom', 'bush', 'rock', 'bush'], { avoid });
       plant(isl, low ? 50 : 110, ['flower'], { avoid, clear: CLEAR });
 
-      // small islands all around, some with waterfalls
-      [[888, -36, 5, 13, 1], [932, 44, -7, 17, 1], [968, -58, 9, 12, 0], [1004, 36, 3, 9, 0], [1128, -44, 7, 15, 1], [1158, 40, -4, 12, 1], [905, 110, 16, 24, 1], [1010, -130, 4, 28, 0], [1090, 150, 12, 22, 1], [960, 190, -6, 30, 0], [1150, -150, 18, 20, 0]].forEach(([s, lat, up, r, fall], i) => {
-        const q = spot(s, lat, up, r), il = island(s, q.x, q.y, q.z, r, { seed: 40 + i });
-        plant(il, Math.round(r * 0.55), ['tree', 'palm', 'tree', 'bush'], { road: false, k1: 0.8 });
-        plant(il, Math.round(r * 0.8), ['flower', 'mushroom', 'flower', 'rock'], { road: false });
-        if (fall) { const a = Math.atan2(-q.nz * Math.sign(lat), -q.nx * Math.sign(lat)) + rr(-0.5, 0.5), e = il.at(a, 0.98); waterfall(s, e[0], q.y, e[1], Math.cos(a), Math.sin(a), r * 0.16 + 1); }
-        if (i === 1) crowd('stego', { seed: 1 }, s, q.x, q.y, q.z, facing(q, P(s, 0, 0)));
-        if (i === 4) crowd('trike', { seed: 2 }, s, q.x, q.y, q.z, facing(q, P(s, 0, 0)));
-      });
+      // small islands all around, some with waterfalls; on two of them somebody stands and looks at the road
+      const list = [[888, -36, 5, 13, 1], [932, 44, -7, 17, 1], [968, -58, 9, 12], [1004, 36, 3, 9], [1128, -44, 7, 15, 1], [1158, 40, -4, 12, 1], [905, 110, 16, 24, 1], [1010, -130, 4, 28], [1090, 150, 12, 22, 1], [960, 190, -6, 30], [1150, -150, 18, 20]];
+      const where = isles(list, 40);
+      [[1, 'stego', 1], [4, 'trike', 2]].forEach(([i, kind, seed]) => { const q = where[i]; crowd(kind, { seed }, list[i][0], q.x, q.y, q.z, facing(q, P(list[i][0], 0, 0))); });
       // long-necks standing in the sea of clouds: only their necks and heads come up beside the road, and they watch her pass
       [[906, 1, 3.5, 0], [986, -1, 3.8, 2], [1146, 1, 3.4, 3]].forEach(([s, sd, sc, seed]) => {
         const hd = P(s, sd * 12.5, 0), feet = P(s, sd * (12.5 + 3.25 * sc), 0), y = hd.y + 1.6 - 7.3 * sc;
@@ -358,7 +381,10 @@
         const wd = rOut - rIn, mid = (rIn + rOut) / 2;
         soup.add(ledgeGeo, cx + Math.cos(a) * mid, y, cz + Math.sin(a) * mid, -a, wd / 2 + 0.2, 1, 8.5);
         const pr = Math.max(rIn + 3.4, rOut - 3.6), px = cx + Math.cos(a) * pr, pz = cz + Math.sin(a) * pr, ahead = P(s - 9, 0, 0), ry = Math.atan2(ahead.x - px, ahead.z - pz);
-        if (who === 'baby') [0, 1, 2].forEach((k) => { const bx = cx + Math.cos(a + (k - 1) * 0.045) * (rOut - 1.6), bz = cz + Math.sin(a + (k - 1) * 0.045) * (rOut - 1.6); actor('baby', { seed: seed + k * 2, size: 1.2 }, bx, y, bz, Math.atan2(ahead.x - bx, ahead.z - bz), { s, still: true, liveAt: 55, tick(obj, dt, t, sNow) { obj.userData.cheer(Math.abs(sNow - s) < 22); } }); });
+        if (who === 'baby') [0, 1, 2].forEach((k) => {
+          const bx = cx + Math.cos(a + (k - 1) * 0.045) * (rOut - 1.6), bz = cz + Math.sin(a + (k - 1) * 0.045) * (rOut - 1.6);
+          actor('baby', { seed: seed + k * 2, size: 1.2 }, bx, y, bz, Math.atan2(ahead.x - bx, ahead.z - bz), { s, still: true, liveAt: 55, tick(obj, dt, t, sNow) { obj.userData.cheer(Math.abs(sNow - s) < 22); } });
+        });
         else actor(who, { seed, size: who === 'trex' ? 0.95 : 0.9 }, px, y, pz, ry, { s, still: true, tick(obj, dt, t, sNow) { if (who === 'trex' && Math.abs(sNow - s + 8) < 14) obj.userData.wave(1); } });
         if (wd > 7) { stampAt(i % 2 ? PALMS[0] : TREES[i], SK, cx + Math.cos(a + 0.13) * (rIn + 2.6), y, cz + Math.sin(a + 0.13) * (rIn + 2.6), i, 1.1); stampAt(MUSHROOMS[i % 3], SK, cx + Math.cos(a - 0.13) * (rIn + 3), y, cz + Math.sin(a - 0.13) * (rIn + 3), 0, 1.5); }
         soupAt(SK, 'lam').add(S.eggGeo(i, true), cx + Math.cos(a - 0.12) * (rOut - 1.5), y, cz + Math.sin(a - 0.12) * (rOut - 1.5), 0, 1);
@@ -371,7 +397,7 @@
       }
       // hearts of cloud float round about, and a few islands
       [[1230, -60, 14, 6], [1345, 75, 26, 7], [1440, 90, 22, 6], [1520, 85, 40, 8], [1600, -70, 16, 6]].forEach(([s, lat, up, size]) => { const g = spot(s, lat, up, size * 1.5); soupAt(s, 'lam').add(heartCloud, g.x, g.y, g.z, facing(g, P(s - 70, 0, 0)), size); });
-      [[1215, 48, -8, 14], [1380, 60, -12, 18], [1470, 75, 6, 13]].forEach(([s, lat, up, r], i) => { const g = spot(s, lat, up, r), il = island(s, g.x, g.y, g.z, r, { seed: 70 + i, grass: '#a6e6c0', grass2: '#8fdcb0' }); plant(il, Math.round(r * 0.5), ['tree', 'palm', 'mushroom'], { road: false, k1: 0.8 }); plant(il, r, ['flower', 'bush'], { road: false }); });
+      isles([[1215, 48, -8, 14], [1380, 60, -12, 18], [1470, 75, 6, 13]], 70, { grass: '#a6e6c0', grass2: '#8fdcb0' });
     })();
 
     /* ============================ down to the city ============================ */
@@ -392,7 +418,7 @@
       const flies = new T.Points(fg, fm);
       flies.visible = false; above.add(flies);
       movers.push({ s: L - 40, r: 420, back: 200, obj: flies, update(dt, t) { flies.position.y = Math.sin(t * 0.7) * 0.5; flies.position.x = Math.sin(t * 0.31) * 0.8; fm.opacity = 0.7 + 0.3 * Math.sin(t * 3.1); fm.size = 0.5 + 0.12 * Math.sin(t * 1.7); } });
-      [[1640, -55, -14, 16], [1700, 60, -20, 20], [1745, -70, -8, 12]].forEach(([s, lat, up, r], i) => { const g = spot(s, lat, up, r), il = island(s, g.x, g.y, g.z, r, { seed: 90 + i, grass: '#a6e6c0', grass2: '#8fdcb0' }); plant(il, Math.round(r * 0.5), ['tree', 'palm', 'mushroom'], { road: false, k1: 0.8 }); plant(il, r, ['flower', 'bush'], { road: false }); if (i < 2) { const a = rnd() * TAU, e = il.at(a, 0.98); waterfall(s, e[0], g.y, e[1], Math.cos(a), Math.sin(a), 3); } });
+      isles([[1640, -55, -14, 16, 1], [1700, 60, -20, 20, 1], [1745, -70, -8, 12]], 90, { grass: '#a6e6c0', grass2: '#8fdcb0' });
     })();
 
     /* ---------- Dinosaur City (ride-sky-city.js) ---------- */

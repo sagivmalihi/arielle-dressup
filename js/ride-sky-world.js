@@ -311,8 +311,10 @@
       { s: M.islands - 30, a: '#ffffff', b: '#edf4ff', dash: '#a9d4ff', rim: '#ffc1dd', gem: '#ffffff', rainbow: 0 },
       { s: M.islands + 30, a: '#fff3d8', b: '#ffe8c0', dash: '#ffffff', rim: '#a9ecd4', gem: '#ffffff', rainbow: 0 }, // the islands: warm sand
       { s: M.rings - 30, a: '#fff3d8', b: '#ffe8c0', dash: '#ffffff', rim: '#a9ecd4', gem: '#ffffff', rainbow: 0 },
+      { s: M.rings, a: '#fbf2ee', b: '#f3e6ea', dash: '#ffffff', rim: '#f3ecc0', gem: '#ffffff', rainbow: 0 },
       { s: M.rings + 30, a: '#e4d6ff', b: '#d5c4ff', dash: '#fff3b0', rim: '#ffe680', gem: '#ff9fcb', rainbow: 0 },   // the volcano: lilac
       { s: M.city - 20, a: '#e4d6ff', b: '#d5c4ff', dash: '#fff3b0', rim: '#ffe680', gem: '#ff9fcb', rainbow: 0 },
+      { s: M.city + 8, a: '#fff8ec', b: '#fbeedd', dash: '#ffffff', rim: '#ffe2c8', gem: '#ffffff', rainbow: 0 },     // (through cream: lilac and gold mixed straight would be mud)
       { s: M.city + 40, a: '#fff0a8', b: '#ffe483', dash: '#ffffff', rim: '#ffc1dd', gem: '#ffffff', rainbow: 0 },    // the golden road to the city
       { s: L + 60, a: '#fff0a8', b: '#ffe483', dash: '#ffffff', rim: '#ffc1dd', gem: '#ffffff', rainbow: 0 },
     ];
@@ -375,8 +377,8 @@
     })();
 
     /* ---------- the scenery of each stretch (ride-sky-scene.js) ---------- */
-    const movers = []; // { s, r, update(dt, t, sNow) } — animated things; only those near her are moved
-    const kit = { T, K, data, DECK, L, M, PIERCE, HALF, low, C, mix, at, altAt, nearWay, skyAt, roadAt, soupAt, layerOf, Soup, cloud, own, owned, under, above, movers, lam, lit, discTex, RAINBOW, RB, info: {} };
+    const movers = []; // { s, r, back, obj, still, update(dt, t, sNow, camera, rider) } — the things that move; only those near her are shown and moved
+    const kit = { T, K, data, DECK, L, M, PIERCE, HALF, low, C, mix, at, altAt, nearWay, skyAt, soupAt, layerOf, cloud, own, owned, under, above, movers, discTex, info: {} };
     let scenery = null;
     if (S.scenery) { try { scenery = S.scenery(kit); } catch (e) { console.error('sky scenery failed', e); } }
 

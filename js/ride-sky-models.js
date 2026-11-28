@@ -128,7 +128,7 @@
   const sizeOf = (o, def) => (typeof o.size === 'number' ? o.size : SIZES[o.size] || def || 1);
 
   /* what every creature does by itself: it breathes, blinks, sways its tail, and turns its head to look at something.
-     P = { body, head, eyes, tail, arms: [l, r], headYaw (how far the head may turn) }.
+     P = { body, head, eyes, tail, arms: [l, r] or bothArms (one mesh), hop (what jumps when it cheers), headYaw (how far the head may turn) }.
      Adds u.look(x, y, z) (a place in the world to look at; nothing = straight ahead), u.wave(secs), u.cheer(on). */
   function alive(grp, u, P, seed, o) {
     const ph = seed * 1.7, lookAt = new T.Vector3();
@@ -448,7 +448,7 @@
     const all = new T.Group(), bodyG = new T.Group();
     all.scale.setScalar(sc); grp.add(all); all.add(bodyG);
     bodyG.userData.pivot = [0, 0, 0];
-    const body = part(bodyG, k + 'B', () => [
+    part(bodyG, k + 'B', () => [
       gs(c.c, 0, 1.02, -0.02, 0.46, 0.47, 0.76, 10, 8),
       gs(c.b, 0, 0.88, 0.0, 0.37, 0.34, 0.62, 8, 5),
       sweep([[0, 1.1, 0.5], [0, 1.42, 0.74], [0, 1.66, 0.86]], [0.38, 0.3, 0.25], c.c, 8, 3),
@@ -482,7 +482,7 @@
     const sh = shadow(grp, 0.5 * sc, 1.05 * sc);
     u.r = 0.6 * sc; u.h = 2.5 * sc; u.size = sc;
     const live = alive(grp, u, { head, eyes, tail, headYaw: 0.8 }, seed, o);
-    let ph = seed * 1.9, amp = 0, ran = false, fly = 0;
+    let ph = seed * 1.9, amp = 0, ran = false;
     /* gallop(dt, speed): call every frame while the game moves it (speed in m/s; 2 = a trot, 8 = a gallop) */
     u.gallop = u.walk = function (dt, speed) { const s = Math.abs(speed || 0); ph += dt * (4 + Math.min(s, 14) * 0.75); amp = damp(amp, Math.min(1, s / 5), 6, dt); ran = true; };
     u.update = function (dt, t) {
@@ -492,7 +492,7 @@
       // the front and the hind pair swing against each other, and the body rocks with them
       const A = 0.25 + amp * 0.65;
       legs[0].rotation.x = Math.sin(ph) * A * amp; legs[1].rotation.x = Math.sin(ph + PI) * A * amp;
-      const lift = Math.max(0, Math.sin(ph * 1 + 0.9)) * amp;
+      const lift = Math.max(0, Math.sin(ph + 0.9)) * amp;
       bodyG.position.y = lift * 0.22; bodyG.rotation.x = Math.sin(ph + 0.4) * 0.09 * amp;
       tail.rotation.x = -amp * 0.7 + Math.sin(t * 5 + seed) * 0.1 * amp; tail.rotation.y += Math.sin(t * 2.2 + seed) * 0.15;
       if (wings) { const f = Math.sin(t * (5 + amp * 5) + seed); wings[0].rotation.z = 0.35 + f * 0.5; wings[1].rotation.z = -0.35 - f * 0.5; }
