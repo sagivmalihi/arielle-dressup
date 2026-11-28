@@ -666,7 +666,7 @@
         g.lat = clamp(g.lat + g.steer * 4.4 * dt * (0.35 + 0.65 * sp), -LAT_MAX, LAT_MAX);
         if (g.mode === 'arrive') g.lat = damp(g.lat, 0, 2.5, dt);
 
-        // speed: as fast as she asked for; she slows by herself for a sharp corner and a red light, and stops at the school
+        // speed: as fast as she asked for; she slows by herself for a sharp corner and a red light, and stops at the end of the way
         const X = crossings.find((c) => !c.passed);
         if (g.mode === 'ride') {
           g.rideT += dt;
@@ -790,6 +790,7 @@
           continue;
         }
         const obj = it.obj;
+        if (it.r === undefined) { it.r = obj.userData.r || 0.4; it.h = obj.userData.h || 0.8; if (it.type === 'star' && it.y === undefined) it.y = 0; } // a thing a place pushed in by itself
         // people and animals that move by themselves
         if (it.type === 'walker' || it.type === 'cyclist' || it.type === 'kid') {
           const active = it.type === 'kid' ? Math.abs(it.s - g.s) < 90 : it.s - g.s < (it.type === 'cyclist' ? 70 : 42) && it.s - g.s > -20;

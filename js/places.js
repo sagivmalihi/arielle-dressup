@@ -82,11 +82,13 @@
   const DU = (window.DU = window.DU || {});
   const PL = (DU.places = {});
 
+  /* The prices: a ride pays about 250–370 stars and a finished character about 900–1600 (most often near 1250),
+     so the first place opens within one sitting and Dinosaur City, the dearest thing in the game, after a few. */
   PL.LIST = [
     { id: 'school', name: 'בית הספר', price: 0, kind: 'city', files: ['js/ride-data.js'], ready: true },
-    { id: 'sarona', name: 'שרונה', price: 150, kind: 'city', files: ['js/ride-data-sarona.js', 'js/ride-place-sarona.js'], ready: false },
-    { id: 'yarkon', name: 'פארק הירקון', price: 300, kind: 'city', files: ['js/ride-data-yarkon.js', 'js/ride-place-yarkon.js'], ready: false },
-    { id: 'dino', name: 'עיר הדינוזאורים', price: 900, kind: 'sky', files: ['js/ride-data.js', 'js/ride-sky.js', 'js/ride-place-dino.js'], ready: false },
+    { id: 'sarona', name: 'שרונה', price: 500, kind: 'city', files: ['js/ride-data-sarona.js', 'js/ride-place-sarona.js'], ready: false },
+    { id: 'yarkon', name: 'פארק הירקון', price: 1000, kind: 'city', files: ['js/ride-data-yarkon.js', 'js/ride-place-yarkon.js'], ready: false },
+    { id: 'dino', name: 'עיר הדינוזאורים', price: 3000, kind: 'sky', files: ['js/ride-data.js', 'js/ride-sky.js', 'js/ride-place-dino.js'], ready: false },
   ];
   PL.HOME = 'school'; // always hers, always there
 
@@ -124,29 +126,28 @@
       [118, 142, 242, 266].forEach((x) => [112, 148].forEach((y) => (s += re(x, y, 17, 22, '#a9dcf5', 'rx="3"') + re(x, y, 17, 6, '#d6f0ff', 'rx="3"'))));
       s += re(170, 82, 60, 110, '#fffaf0') + pa('M162 84L200 56L238 84Z', '#ffd24d') + ci(200, 76, 6.5, '#fff', 'stroke="#e9b96b" stroke-width="2"') + ln('M200 76V72.500M200 76L202.500 77.500', '#8a6a5a', 1.4);
       s += pa('M186 192V150A14 14 0 0 1 214 150V192Z', '#8b6cf0') + ln('M200 138V192', '#6a4fd0', 1.6) + ci(204.500, 168, 1.8, '#ffd24d');
-      s += re(178, 98, 44, 14, '#fff', 'rx="7"') + ln('M186 105H214', '#ff9ec4', 3);
       s += ln('M200 58V26', '#c9ced6', 2.4) + pa('M201 28L226 34L201 42Z', '#ff5fa2') + ci(200, 25, 2.6, '#ffd24d');
       // lawn in front, the fence and the gate
       s += pa('M0 216Q110 200 200 208T400 204V300H0Z', '#a2df8c');
       const FENCE = ['#ff8fc0', '#ffd54d', '#7de3e0', '#b99cff', '#ff9d4d', '#63c98a', '#5aa9ff'];
       let f = '';
-      for (let i = 0; i < 9; i++) [18 + i * 13.5, 262 + i * 13.5].forEach((x, k) => (f += pa(`M${n(x)} 232V205l4.500 -5l4.500 5V232Z`, FENCE[(i + k * 3) % FENCE.length])));
-      s += re(14, 211, 124, 4, '#fff', 'rx="2"') + re(262, 211, 124, 4, '#fff', 'rx="2"') + re(14, 223, 124, 4, '#fff', 'rx="2"') + re(262, 223, 124, 4, '#fff', 'rx="2"') + f;
+      for (let i = 0; i < 8; i++) [16 + i * 13.5, 280.5 + i * 13.5].forEach((x, k) => (f += pa(`M${n(x)} 234V207l4.500 -5l4.500 5V234Z`, FENCE[(i + k * 3) % FENCE.length])));
+      s += re(12, 213, 116, 4, '#fff', 'rx="2"') + re(272, 213, 116, 4, '#fff', 'rx="2"') + re(12, 225, 116, 4, '#fff', 'rx="2"') + re(272, 225, 116, 4, '#fff', 'rx="2"') + f;
       // the rainbow carpet, from the door to us
-      s += pa('M190 192H210L246 232H154Z', '#fbe7a8');
-      const ys = [232, 240, 249, 259, 271, 285, 300];
-      const edge = (y) => 46 + (y - 232) * 1.02; // half width of the carpet at y
+      s += pa('M190 192H210L256 234H144Z', '#fbe7a8');
+      const ys = [234, 242, 251, 261, 272, 285, 300];
+      const edge = (y) => 56 + (y - 234) * 1.02; // half width of the carpet at y
       for (let i = 0; i < 6; i++) s += pa(`M${n(200 - edge(ys[i]))} ${ys[i]}H${n(200 + edge(ys[i]))}L${n(200 + edge(ys[i + 1]))} ${ys[i + 1]}H${n(200 - edge(ys[i + 1]))}Z`, RAINBOW[i]);
-      s += ln(`M154 232L${n(200 - edge(300))} 300M246 232L${n(200 + edge(300))} 300`, '#fff', 3);
-      // gate posts and the balloon arch
-      s += re(139, 190, 15, 44, '#ff8fc0', 'rx="3"') + re(246, 190, 15, 44, '#7de3e0', 'rx="3"') + re(136, 186, 21, 6, '#fff', 'rx="3"') + re(243, 186, 21, 6, '#fff', 'rx="3"');
+      s += ln(`M144 234L${n(200 - edge(300))} 300M256 234L${n(200 + edge(300))} 300`, '#fff', 3);
+      // gate posts and the balloon arch between them
+      s += re(126, 192, 15, 44, '#ff8fc0', 'rx="3"') + re(259, 192, 15, 44, '#7de3e0', 'rx="3"') + re(123, 188, 21, 6, '#fff', 'rx="3"') + re(256, 188, 21, 6, '#fff', 'rx="3"');
       let b = '';
-      for (let i = 0; i <= 16; i++) {
-        const a = (i / 16) * Math.PI, x = 200 - Math.cos(a) * 55, y = 186 - Math.sin(a) * 64, r = 9.5 + (i % 3) * 0.9;
-        b += ci(x + (i % 2 ? 2.5 : -2.5), y + (i % 2 ? -2 : 2), r, BALLOON[(i * 3) % BALLOON.length]) + ci(x + (i % 2 ? 0 : -5), y - 3, 2.2, '#fff', 'fill-opacity=".7"');
+      for (let i = 0; i <= 22; i++) {
+        const a = (i / 22) * Math.PI, k = i % 2 ? 4 : -3, x = 200 - Math.cos(a) * (66.500 + k), y = 190 - Math.sin(a) * (86 + k), r = 8.500 + (i % 3) * 1.1;
+        b += ci(x, y, r, BALLOON[(i * 3) % BALLOON.length]) + ci(x - r * 0.3, y - r * 0.36, r * 0.24, '#fff', 'fill-opacity=".75"');
       }
-      s += b + ln('M176 136V146M224 136V146', '#fff', 1.4) + re(166, 144, 68, 20, '#fff', 'rx="10" stroke="#ffd54d" stroke-width="2.5"');
-      s += `<text x="200" y="159" text-anchor="middle" direction="rtl" font-family="Fredoka, 'Arial Hebrew', system-ui, sans-serif" font-weight="700" font-size="13" fill="#ff5fa2">בוקר טוב!</text>`;
+      s += b + ln('M178 110V124M222 110V124', '#fff', 1.4) + re(162, 121, 76, 22, '#fff', 'rx="11" stroke="#ffd54d" stroke-width="2.5"');
+      s += `<text x="200" y="137" text-anchor="middle" direction="rtl" font-family="Fredoka, 'Arial Hebrew', system-ui, sans-serif" font-weight="700" font-size="14" fill="#ff5fa2">בוקר טוב!</text>`;
       [[70, 250, '#ff9fc4'], [104, 272, '#fff'], [42, 280, '#ffe08a'], [330, 252, '#fff'], [304, 276, '#ff9fc4'], [366, 282, '#ffe08a']].forEach(([x, y, c]) => (s += ci(x, y, 5, c) + ci(x, y, 2, c === '#ffe08a' ? '#ff9f5c' : '#ffd24d')));
       return s;
     },
@@ -234,7 +235,7 @@
       const road = 'M150 318C150 262 280 252 276 208C273 176 216 168 206 138';
       [34, 28.500, 23, 17.500, 12, 6.500].forEach((w, i) => (s += ln(road, RAINBOW[i], w, 'stroke-linecap="butt"')));
       // (seen from above the far end is thin: the clouds cover what would stick out)
-      s += cloud(214, 150, 22, '#fff', 1) + cloud(318, 214, 30) + cloud(96, 226, 34) + cloud(250, 292, 44) + cloud(30, 296, 40) + cloud(390, 286, 34);
+      s += cloud(214, 150, 22, '#fff', 1) + cloud(316, 216, 30) + cloud(102, 228, 34) + cloud(250, 292, 44) + cloud(30, 296, 40) + cloud(390, 286, 34);
       // the dinosaur, on the cloud at the left
       const G = '#8fdc9a', GD = '#6fc884', GL = '#d2f5cf';
       let d = pa('M38 214Q10 220 6 196Q20 212 44 200Z', G);
@@ -245,7 +246,7 @@
       [[48, 186, 6], [62, 180, 7], [77, 180, 7], [91, 186, 6]].forEach(([x, y, r]) => (d += pa(`M${x - r} ${y + 4}Q${x} ${y - r * 1.9} ${x + r} ${y + 4}Z`, '#ffd76a')));
       d += ci(58, 202, 4, GD, 'fill-opacity=".6"') + ci(74, 196, 3, GD, 'fill-opacity=".6"') + ci(90, 204, 3.4, GD, 'fill-opacity=".6"');
       d += ci(126, 133, 3.2, '#4b3564') + ci(127, 132, 1.1, '#fff') + ln('M122 143Q129 147 135 141', '#4b3564', 1.8) + ci(118, 142, 3.6, '#ff9ec4', 'fill-opacity=".8"') + ci(136.500, 133, 1, '#4b3564', 'fill-opacity=".5"');
-      s += d;
+      s += `<g transform="translate(28.6 24.2) scale(.9)">${d}</g>`; // (both stand a little inside, so a squarer card does not cut them)
       // the unicorn, on the cloud at the right
       const W = '#ffffff', WL = '#d9cdf5';
       let c = pa('M356 190Q384 186 380 214Q372 204 366 212Q362 200 352 200Z', `url(#${u}m)`);
@@ -258,12 +259,12 @@
       c += pa('M297 133L291 108L304 131Z', '#ffd54d') + ln('M294.500 122L299 124M296 128L301.500 129', '#e9a92c', 1.2) + pa('M306 132L312 121L314 135Z', W, `stroke="${WL}" stroke-width="1.500"`);
       c += pa('M308 132Q324 136 322 152Q330 160 324 172Q332 180 326 190Q318 178 318 168Q312 158 314 148Q312 138 308 132Z', `url(#${u}m)`);
       c += ln('M288 146q4 3 8 0', '#4b3564', 1.7) + ci(293, 153, 3.2, '#ff9ec4', 'fill-opacity=".8"') + ci(279, 154, 0.9, '#4b3564', 'fill-opacity=".5"');
-      s += c;
-      s += pa(DU.sparkleD(150, 196, 7), '#fff') + pa(DU.sparkleD(252, 176, 5), '#fff') + pa(DU.starD(344, 150, 7), '#ffd54d') + pa(DU.starD(56, 150, 6), '#ffd54d') + pa(DU.heartD(232, 234, 6), '#ff8fc0');
+      s += `<g transform="translate(20.4 22.6) scale(.9)">${c}</g>`;
+      s += pa(DU.sparkleD(166, 206, 6), '#fff') + pa(DU.sparkleD(252, 176, 5), '#fff') + pa(DU.starD(344, 150, 7), '#ffd54d') + pa(DU.starD(56, 150, 6), '#ffd54d') + pa(DU.heartD(232, 234, 6), '#ff8fc0');
       return s;
     },
   };
-  /* par = preserveAspectRatio: the pictures are made to be cropped ('slice') to the shape of the card */
+  /* the picture fills its card and is cropped to its shape ('slice'), so what matters is drawn in the middle */
   PL.card = function (id, cls) {
     const f = CARDS[id];
     if (!f) return '';

@@ -58,12 +58,12 @@
 
 /* a tall screen: squarer postcards, as wide as the screen lets them be */
 @media (orientation: portrait) {
-  .pl-grid { --pic: 1 / 1; --ar: 1; gap: 14px; }
+  .pl-grid { --pic: 5 / 4; --ar: 1.25; gap: 14px; }
 }
 /* a low, wide screen (a phone on its side, a small laptop window): the four in one row */
 @media (orientation: landscape) and (max-height: 640px) {
   .places { gap: 8px; padding: 8px 14px 12px; border-radius: 28px; }
-  .pl-grid { --pic: 1 / 1; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: min(100%, calc((var(--vh) - 196px) * 4 + 76px)); }
+  .pl-grid { --pic: 6 / 5; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: min(100%, calc((var(--vh) - 196px) * 4.8 + 76px)); }
   .pl-cap { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; min-height: 0; padding: 6px 8px 8px; text-align: center; }
   .pl-cap > b { font-size: clamp(15px, 2vw, 20px); }
   .pl-tag { justify-content: center; height: 32px; font-size: 15px; padding: 0 8px; }

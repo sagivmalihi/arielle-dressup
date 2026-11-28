@@ -137,6 +137,19 @@
   .rs-btn { height: 44px; }
   .ride-speed { gap: 3px; padding: 5px; }
   .rs-read small { display: none; }
+  /* a phone on its side: the whole end card, with all its buttons, fits without scrolling */
+  .ride-panel { padding: 8px 16px; }
+  .ride-card { padding: 10px 18px 12px; border-radius: 24px; max-height: 100%; }
+  .ride-card h2 { font-size: 22px; margin-bottom: 5px; }
+  .ride-rows { gap: 4px; }
+  .ride-row { padding: 2px 12px; font-size: 16px; border-radius: 12px; }
+  .ride-row .i { width: 26px; height: 26px; font-size: 22px; }
+  .ride-total { margin-top: 3px; font-size: 30px; }
+  .ride-panel.end .ride-note { display: none; }
+  .ride-card .row, .ride-card.has-door .row, .ride-card .row.tight { margin-top: 7px; gap: 8px; }
+  .ride-card .btn { min-height: 42px; font-size: 17px; padding: 5px 16px; }
+  .ride-card .btn.big { min-height: 44px; font-size: 19px; padding: 5px 20px; }
+  .ride-card .btn.small { min-height: 36px; font-size: 14px; padding: 4px 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ride-wheel, .ride.hint-steer .rc-left, .ride.hint-steer .rc-right, .ride.hint-jump .rc-jump, .ride.hint-bell .rc-bell, .ride.hint-speed .rs-up { animation: none; }

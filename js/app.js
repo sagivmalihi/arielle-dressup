@@ -778,7 +778,7 @@
       const own = PLC.owns(p.id), kind = !p.ready ? 'soon' : own ? 'open' : 'locked';
       const tag = !p.ready ? `<span class="pl-tag soon">${ico('sparkle', '✨')} בקרוב</span>`
         : own ? `<span class="pl-tag go">${ico('bike', '🚲')} לרכוב!</span>`
-        : `<span class="pl-tag price" dir="ltr">${ico('lock', '🔒')}${starIco()}<b>${p.price}</b></span>`;
+        : `<span class="pl-tag price" dir="ltr">${starIco()}<b>${p.price}</b></span>`;
       return `<button class="pl-card ${kind}${fresh === p.id ? ' fresh' : ''}" data-act="place" data-id="${p.id}" aria-label="${esc(p.name)}${kind === 'soon' ? ' (בקרוב)' : ''}"><span class="pl-pic">${PLC.card(p.id)}</span><span class="pl-cap"><b>${esc(p.name)}</b>${tag}</span></button>`;
     };
     const html = (fresh) => `
