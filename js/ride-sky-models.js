@@ -396,7 +396,7 @@
     if (shell) { // a piece of its egg still on its head, like a hat
       const cap = K.g(new T.SphereGeometry(0.29, 10, 4, 0, TAU, 0, PI * 0.36), '#fff8e8', 0, 0.66, 0.06, -0.12);
       parts.push(cap, gs('#ffc9de', 0.1, 0.93, 0.12, 0.05, 0.02, 0.05, 5, 3), gs('#bfe6ff', -0.12, 0.9, 0.0, 0.045, 0.02, 0.045, 5, 3));
-    } else parts.push(...[0, 1, 2].map((i) => gcone(c.d, 0, 0.9 - i * 0.07, 0.02 - i * 0.14, 0.05, 0.1, 4, -0.5 - i * 0.5)));
+    } else parts.push(...[[0.9, 0.02, -0.3], [0.83, -0.11, -0.8], [0.71, -0.19, -1.3]].map(([y, z, rx]) => gcone(c.d, 0, y, z, 0.05, 0.1, 4, rx))); // three soft spikes over the back of its head
     return parts;
   }
   const babyEyes = () => [...eye(0.14, 0.69, 0.27, 0.088, 0.4), ...eye(-0.14, 0.69, 0.27, 0.088, -0.4)];
