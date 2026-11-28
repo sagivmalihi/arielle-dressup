@@ -80,7 +80,12 @@
   .pl-buy .row { margin-top: 6px; }
   .pl-buy .btn.big { min-height: 50px; font-size: 20px; padding: 6px 22px; }
 }
-@media (max-width: 520px) {
-  .pl-tag { padding: 0 9px; font-size: 15px; height: 32px; }
-  .pl-cap { padding-inline: 8px; }
+/* a narrow screen (a phone held upright): the name over its tag, so a long name is not cut */
+@media (max-width: 620px) {
+  .places { padding: 10px 10px 14px; }
+  .pl-grid { gap: 10px; }
+  .pl-cap { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; min-height: 0; padding: 6px 6px 8px; text-align: center; }
+  .pl-cap > b { font-size: clamp(14px, 4.4vw, 20px); }
+  .pl-tag { justify-content: center; height: 32px; font-size: 15px; padding: 0 8px; }
+  .pl-card.locked .pl-pic::after { width: 36px; height: 36px; top: 6px; inset-inline-start: 6px; }
 }

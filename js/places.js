@@ -23,11 +23,14 @@
 
    3. The hand-written module of a place registers its own behaviour. Every field is optional:
         (DU.RIDE_PLACE = DU.RIDE_PLACE || {})[id] = {
-          data,                       the route data: an object, or a function (id) → object.
+          data,                       the route data: an object, or a function (id) → object (called once per ride).
                                       Default: DU.RIDE_DATA_OF[id] (for 'school': DU.RIDE_DATA).
           world(scene, data, opts),   → a world with the interface written at the top of ride-world.js
-                                      (update(dt, t, camera), dispose(), ready, info, parkOk; all but dispose optional).
+                                      (update(dt, t, camera), dispose(), ready, info, parkOk: each one optional).
                                       opts = { quality: 'high' | 'low', place: id }. Default: DU.rideWorld.build.
+                                      The game parks cars where world.parkOk(s, side) allows, up to world.info.parkEnd
+                                      (without it: up to the first crossing); a world of its own without parkOk gets none.
+                                      Whatever is added to the scene is freed with it when the ride closes.
           level(api),                 → the list of things on the way (stars, obstacles…). Default: DU.ride.std.level,
                                       the street level, which fits any route length and any number of crossings.
           scenery(api),               puts what stands along the way and at the end into the scene.
