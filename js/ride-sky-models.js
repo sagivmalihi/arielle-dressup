@@ -160,6 +160,7 @@
         P.arms[0].rotation.set(-up * (1.5 + 0.35 * Math.sin(t * 11)), 0, up * 0.5 + Math.sin(t * 1.3 + ph) * 0.05);
         P.arms[1].rotation.set(-cheerK * (1.5 + 0.35 * Math.sin(t * 11 + 1.2)), 0, -cheerK * 0.5 - Math.sin(t * 1.3 + ph) * 0.05);
       }
+      if (P.bothArms) P.bothArms.rotation.x = -Math.max(waveK, cheerK) * (1.5 + 0.35 * Math.sin(t * 11));
       if (P.hop) P.hop.position.y = cheerK * Math.abs(Math.sin(t * 6.5 + ph)) * (P.hopH || 0.3);
     };
   }
@@ -364,6 +365,7 @@
     }, [s * 0.18, 0.04, 0], twoSided());
     const wl = wing(1), wr = wing(-1);
     const sh = shadow(grp, 1.5 * sc, 0.8 * sc, 0.14);
+    sh.visible = o.shadow !== false; // high in the air there is no ground under it
     u.r = 2.2 * sc; u.h = y0 + 0.6 * sc; u.size = sc; u.flap = o.flap === undefined ? 0.5 : o.flap;
     const ph = seed * 1.3;
     let wp = ph;
@@ -407,16 +409,17 @@
       gs(c.c, 0, 0.3, -0.02, 0.21, 0.23, 0.25, 9, 7),
       gs(c.b, 0, 0.27, 0.08, 0.16, 0.18, 0.17, 8, 5),
       ...[0, 1].map((i) => gcone(c.d, 0, 0.48 - i * 0.1, -0.2 - i * 0.07, 0.045, 0.09, 4, -1.0 - i * 0.3)),
+      sweep([[0, 0.26, -0.2], [0, 0.18, -0.42], [0, 0.2, -0.58]], [0.13, 0.07, 0.025], c.c, 6, 3),
     ]);
-    const tail = part(all, k + 'T', () => [sweep([[0, 0.26, -0.2], [0, 0.18, -0.42], [0, 0.2, -0.58]], [0.13, 0.07, 0.025], c.c, 6, 3)], [0, 0.26, -0.2]);
     const head = part(all, k + 'H', () => babyHead(c, shell), [0, 0.42, 0.02]);
     const eyes = part(head, 'babyE', babyEyes, [0, 0.69, 0.27]);
     const leg = (s) => part(all, k + 'L' + s, () => [gs(c.c, s * 0.12, 0.13, 0, 0.085, 0.14, 0.1, 6, 5), gs(c.c, s * 0.12, 0.035, 0.07, 0.085, 0.04, 0.13, 6, 4)], [s * 0.12, 0.24, 0]);
-    const arm = (s) => part(all, k + 'A' + s, () => [sweep([[s * 0.19, 0.36, 0.08], [s * 0.26, 0.28, 0.16]], [0.045, 0.035], c.c, 5, 2)], [s * 0.19, 0.36, 0.08]);
-    const legs = [leg(1), leg(-1)], arms = [arm(1), arm(-1)];
+    // (both arms are one mesh, and the tail is part of the body: a baby is small, it should cost few draws)
+    const arms = part(all, k + 'A', () => [1, -1].map((s) => sweep([[s * 0.19, 0.36, 0.08], [s * 0.26, 0.28, 0.16]], [0.045, 0.035], c.c, 5, 2)), [0, 0.36, 0.08]);
+    const legs = [leg(1), leg(-1)];
     shadow(grp, 0.3 * sc, 0.4 * sc, 0.22);
     u.r = 0.32 * sc; u.h = 0.95 * sc; u.size = sc;
-    const live = alive(grp, u, { head, eyes, tail, arms, hop: all, hopH: 0.22 * sc, headYaw: 1.0 }, seed, o);
+    const live = alive(grp, u, { head, eyes, bothArms: arms, hop: all, hopH: 0.22 * sc, headYaw: 1.0 }, seed, o);
     let ph = seed * 1.3, amp = 0, walked = false;
     /* walk(dt, speed): step along; call it every frame while the game moves it */
     u.walk = function (dt, speed) { const s = Math.abs(speed || 0); ph += dt * s * 9; amp = damp(amp, Math.min(1, s / 0.8), 8, dt); walked = true; };
@@ -468,8 +471,9 @@
     ], [0, 1.6, 0.82]);
     const eyes = part(head, k + 'E', () => [...eye(0.23, 1.85, 1.1, 0.115, 0.75), ...eye(-0.23, 1.85, 1.1, 0.115, -0.75)], [0, 1.85, 1.1]);
     const tail = part(bodyG, k + 'T', () => [sweep([[0, 1.15, -0.7], [0, 1.22, -1.05], [0, 0.85, -1.36], [0, 0.4, -1.4]], [0.1, 0.17, 0.15, 0.04], (uu) => c.mane[Math.min(5, Math.floor(uu * 6))], 7, 5)], [0, 1.15, -0.7]);
-    const leg = (x, z, key) => part(bodyG, k + 'L' + key, () => [gcyl(c.c, x, 0.5, z, 0.15, 0.115, 0.8, 7), gcyl(c.hoof, x, 0.08, z, 0.125, 0.14, 0.16, 7)], [x, 0.86, z]);
-    const legs = [leg(0.23, 0.46, 'a'), leg(-0.23, 0.46, 'b'), leg(0.23, -0.5, 'c'), leg(-0.23, -0.5, 'd')];
+    // the two front legs are one mesh and so are the two hind legs: each pair swings about the line through its hips
+    const pair = (z, key) => part(bodyG, k + 'L' + key, () => [0.23, -0.23].flatMap((x) => [gcyl(c.c, x, 0.5, z, 0.15, 0.115, 0.8, 7), gcyl(c.hoof, x, 0.08, z, 0.125, 0.14, 0.16, 7)]), [0, 0.86, z]);
+    const legs = [pair(0.46, 'f'), pair(-0.5, 'h')];
     let wings = null;
     if (o.wings) {
       const wing = (s) => part(bodyG, k + 'W' + s, () => [0, 1, 2].map((i) => K.g(new T.SphereGeometry(1, 7, 4), i === 1 ? c.mane[4] : '#ffffff', s * (0.36 + i * 0.2), 1.42 + i * 0.03, -0.1 - i * 0.2, 0, s * -0.5, 0, 0.36 - i * 0.05, 0.035, 0.17)), [s * 0.16, 1.36, 0]);
@@ -485,10 +489,9 @@
       live(dt, t);
       if (!ran) amp = damp(amp, 0, 6, dt);
       ran = false;
-      // front and hind pairs swing against each other, a little out of step, and the body rocks with them
+      // the front and the hind pair swing against each other, and the body rocks with them
       const A = 0.25 + amp * 0.65;
-      legs[0].rotation.x = Math.sin(ph) * A * amp; legs[1].rotation.x = Math.sin(ph + 0.6) * A * amp;
-      legs[2].rotation.x = Math.sin(ph + PI) * A * amp; legs[3].rotation.x = Math.sin(ph + PI + 0.6) * A * amp;
+      legs[0].rotation.x = Math.sin(ph) * A * amp; legs[1].rotation.x = Math.sin(ph + PI) * A * amp;
       const lift = Math.max(0, Math.sin(ph * 1 + 0.9)) * amp;
       bodyG.position.y = lift * 0.22; bodyG.rotation.x = Math.sin(ph + 0.4) * 0.09 * amp;
       tail.rotation.x = -amp * 0.7 + Math.sin(t * 5 + seed) * 0.1 * amp; tail.rotation.y += Math.sin(t * 2.2 + seed) * 0.15;
@@ -511,10 +514,25 @@
     [[0.9, 0.62, 0.1], [2.6, 1.62, 0.12], [4.4, 0.75, 0.085], [5.6, 2.05, 0.11], [1.6, 2.25, 0.1], [3.5, 2.5, 0.08], [0.2, 1.7, 0.075], [4.9, 1.45, 0.07], [2.9, 0.45, 0.07]].forEach(([az, el, r], i) => {
       if ((el < CUT) !== (part0 === 'top') || Math.abs(el - CUT) < r / 0.4) return;
       const rr = r * 1.9, k = 1 - (0.86 * rr) / 0.4;
-      parts.push(gs(c.s[i % 2], R * Math.sin(el) * Math.sin(az) * k, H + H * Math.cos(el) * k, R * Math.sin(el) * Math.cos(az) * k, rr, rr, rr, 8, 6));
+      parts.push(gs(c.s[i % 2], R * Math.sin(el) * Math.sin(az) * k, H + H * Math.cos(el) * k, R * Math.sin(el) * Math.cos(az) * k, rr, rr, rr, 7, 4));
     });
     return K.merge(parts);
   }
+  /* a light egg for the scenery: one geometry of about 170 triangles, 0.9 m tall, standing on the origin; nest: in a nest */
+  S.eggGeo = function (seed, nest) {
+    ready();
+    const v = Math.abs(seed | 0) % EGGS.length, c = EGGS[v], R = 0.34, H = 0.46;
+    return geo('eggLite' + v + (nest ? 'n' : ''), () => {
+      const parts = [K.g(new T.SphereGeometry(1, 9, 6), c.c, 0, H, 0, 0, 0, 0, R, H, R)];
+      [[0.9, 0.7, 0.1], [2.6, 1.5, 0.12], [4.4, 0.8, 0.09], [5.6, 1.9, 0.11], [1.7, 2.1, 0.1], [3.6, 2.3, 0.09]].forEach(([az, el, r], i) => {
+        const nx = (Math.sin(el) * Math.sin(az)) / R, ny = Math.cos(el) / H, nz = (Math.sin(el) * Math.cos(az)) / R, l = Math.hypot(nx, ny, nz), d = new T.CircleGeometry(r, 7);
+        d.rotateX(-Math.asin(ny / l)); d.rotateY(Math.atan2(nx, nz));
+        parts.push(K.g(d, c.s[i % 2], R * Math.sin(el) * Math.sin(az) + (nx / l) * 0.012, H + H * Math.cos(el) + (ny / l) * 0.012, R * Math.sin(el) * Math.cos(az) + (nz / l) * 0.012));
+      });
+      if (nest) parts.push(K.g(new T.TorusGeometry(0.4, 0.13, 4, 9), '#e6c58a', 0, 0.1, 0, PI / 2), K.g(new T.TorusGeometry(0.34, 0.1, 4, 8), '#d4ad6a', 0, 0.2, 0, PI / 2, 0, 0.5));
+      return K.merge(parts);
+    });
+  };
   /* a dinosaur egg, 0.9 m tall. bump(side): it rocks. hatch(): the top pops off and a baby looks out (userData.hatched).
      opts.nest: it lies in a nest of straw */
   MAKERS.egg = function (grp, u, o, rnd, seed) {
@@ -598,13 +616,12 @@
     const spin = new T.Group();
     spin.scale.setScalar(sc); spin.position.y = cy * sc; grp.add(spin);
     spin.add(new T.Mesh(geo('ring', () => {
-      // three thin hoops side by side would be heavy: one hoop, its skin painted in rainbow bands that wind round it
-      const g = K.g(new T.TorusGeometry(R, 0.17, 8, 36), '#ffffff'), c = new T.Color(), p = g.attributes.position, col = g.attributes.color;
+      // one hoop painted in six bands from its outer edge to its inner edge, so both faces show the whole rainbow
+      const g = K.g(new T.TorusGeometry(R, 0.17, 12, 40), '#ffffff'), c = new T.Color(), p = g.attributes.position, col = g.attributes.color;
       for (let i = 0; i < p.count; i += 3) {
         const x = (p.getX(i) + p.getX(i + 1) + p.getX(i + 2)) / 3, y = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3, z = (p.getZ(i) + p.getZ(i + 1) + p.getZ(i + 2)) / 3;
-        const round = Math.atan2(z, Math.hypot(x, y) - R), along = Math.atan2(y, x);
-        const band = Math.floor((((round / TAU) * 6 + (along / TAU) * 12) % 6 + 6) % 6);
-        c.set(RAINBOW[band]); for (let j = 0; j < 3; j++) col.setXYZ(i + j, c.r, c.g, c.b);
+        const round = Math.abs(Math.atan2(z, Math.hypot(x, y) - R)); // 0 on the outer edge … π on the inner edge
+        c.set(RAINBOW[Math.min(5, Math.floor((round / PI) * 6))]); for (let j = 0; j < 3; j++) col.setXYZ(i + j, c.r, c.g, c.b);
       }
       const stars = [];
       for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + 0.26; stars.push(K.g(new T.OctahedronGeometry(0.11), i % 2 ? '#ffffff' : '#ffe680', Math.cos(a) * (R + 0.38), Math.sin(a) * (R + 0.38), 0, 0, 0, a + PI / 2, 1, 1.7, 1)); }
@@ -684,7 +701,7 @@
      ---------------------------------------------------------------------------------
      trex · trike · stego        look(x, y, z) (its head follows a place in the world; look() = lets go), wave(secs) (trex), cheer(on)
      bronto                      the same; opts.leaf (it chews a branch); userData.headY / headZ = where its head is
-     ptero                       opts.y (how high), userData.flap 0…1
+     ptero                       opts.y (how high), opts.shadow: false (high in the air), userData.flap 0…1
      baby                        walk(dt, speed), cheer(on), bump(), look(); opts.shell
      unicorn                     gallop(dt, speed) (= walk), look(); opts.wings
      egg                         bump(side), hatch() → userData.hatched, reset(); opts.nest

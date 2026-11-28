@@ -35,8 +35,8 @@
   /* heights: [metres from the start, metres above the street]; straight lines between them, then rounded */
   const HILLS = [
     [LIFT + 28, 0], [468, 57], [530, 60],
-    [600, 68], [690, 53], [760, 60], [870, 62],
-    [950, 76], [1000, 70], [1124, 70], [1196, 60],   // (level across the big island: 1028…1096)
+    [600, 68], [690, 53], [760, 60], [866, 62],
+    [946, 76], [984, 70], [1140, 70], [1204, 60],    // (level across the big island: 1012…1112)
     [1286, 60], [1586, 100],
     [1620, 101], [1768, 80], [1836, 80],
   ];
@@ -92,11 +92,14 @@
     h = smooth(smooth(h, ROUND_HILL), ROUND_HILL);
     for (let i = 0; i < N; i++) { const s = i * STEP; alt.push(s <= LIFT ? 0 : Math.round(h[Math.min(length, s)] * 100) / 100); }
 
+    /* where the ramp goes into the cloud; about 36 m further on she is above it, and the sea of clouds begins */
+    marks.pierce = STEP * alt.findIndex((y) => y >= DECK);
+    const out = marks.pierce + 36;
     const Z = (id, name, s0, s1) => ({ id, name, s0, s1 });
     const zones = [
       Z('street', 'הרחוב שלנו', 0, LIFT),
-      Z('ramp', 'הרמפה לעננים', LIFT, marks.clouds),
-      Z('clouds', 'ים העננים', marks.clouds, marks.islands),
+      Z('ramp', 'הרמפה לעננים', LIFT, out),
+      Z('clouds', 'ים העננים', out, marks.islands),
       Z('islands', 'האיים המרחפים', marks.islands, marks.rings),
       Z('volcano', 'הר הלבבות', marks.rings, marks.city),
       Z('city', 'עיר הדינוזאורים', marks.city, length),

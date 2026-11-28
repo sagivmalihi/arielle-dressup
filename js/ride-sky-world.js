@@ -33,14 +33,14 @@
      the fog, the clouds (their lit tops and their shade), the light, how high the sun stands, how many stars. */
   const SKIES = [
     { s: 0, top: '#4f9fff', mid: '#9dd4ff', low: '#cfeaff', hor: '#eaf6ff', fog: '#e3f2ff', cloud: '#ffffff', shade: '#c4dcf6', sea: '#d9e9fa',
-      hemi: '#ffffff', ground: '#eef2ff', hemiK: 0.8, sun: '#fff3d6', sunK: 0.36, el: 47, glow: '#fff8e0', glowK: 0.25, stars: 0, near: 150, far: 900 },
+      hemi: '#ffffff', ground: '#eef2ff', hemiK: 0.8, sun: '#fff3d6', sunK: 0.36, el: 47, glow: '#fff8e0', glowK: 0.25, stars: 0, near: 140, far: 760 },
     { s: 700, top: '#4f9fff', mid: '#9dd4ff', low: '#cfeaff', hor: '#eaf6ff', fog: '#e3f2ff', cloud: '#ffffff', shade: '#c4dcf6', sea: '#d9e9fa',
-      hemi: '#ffffff', ground: '#eef2ff', hemiK: 0.8, sun: '#fff3d6', sunK: 0.36, el: 40, glow: '#fff8e0', glowK: 0.25, stars: 0, near: 150, far: 900 },
+      hemi: '#ffffff', ground: '#eef2ff', hemiK: 0.8, sun: '#fff3d6', sunK: 0.36, el: 40, glow: '#fff8e0', glowK: 0.25, stars: 0, near: 140, far: 760 },
     { s: 930, top: '#79a8f2', mid: '#f5bfdc', low: '#ffcfb8', hor: '#ffe9bf', fog: '#ffe0cf', cloud: '#fff6ee', shade: '#f2bcd0', sea: '#f9cfd6',
-      hemi: '#fff4ec', ground: '#ffdfe6', hemiK: 0.94, sun: '#ffc48a', sunK: 0.5, el: 13, glow: '#ffd27a', glowK: 0.85, stars: 0, near: 140, far: 820 },
+      hemi: '#fff4ec', ground: '#ffdfe6', hemiK: 0.94, sun: '#ffc48a', sunK: 0.5, el: 13, glow: '#ffd27a', glowK: 0.85, stars: 0, near: 140, far: 780 },
     { s: 1230, top: '#6d8fe6', mid: '#eea8d8', low: '#ffb9b0', hor: '#ffd9a6', fog: '#ffd0cc', cloud: '#fff0ec', shade: '#e9a9cf', sea: '#f2bcd3',
-      hemi: '#fff0f2', ground: '#f8d2ea', hemiK: 0.96, sun: '#ffb37a', sunK: 0.46, el: 6, glow: '#ffbe6e', glowK: 0.9, stars: 0.05, near: 140, far: 800 },
-    { s: 1600, top: '#4a4bb0', mid: '#8b7fe6', low: '#d9a2ee', hor: '#ffc9e6', fog: '#d6b8f2', cloud: '#f4e8ff', shade: '#b39ae6', sea: '#c3a8ec',
+      hemi: '#fff0f2', ground: '#f8d2ea', hemiK: 0.96, sun: '#ffb37a', sunK: 0.46, el: 6, glow: '#ffbe6e', glowK: 0.9, stars: 0.05, near: 140, far: 780 },
+    { s: 1600, top: '#4244a8', mid: '#7f74e0', low: '#cf9bec', hor: '#ffc9e6', fog: '#d6b8f2', cloud: '#f4e8ff', shade: '#b39ae6', sea: '#c3a8ec',
       hemi: '#f4ecff', ground: '#d8c6f8', hemiK: 1.0, sun: '#ffc6e2', sunK: 0.3, el: -3, glow: '#ff9fce', glowK: 0.7, stars: 1, near: 130, far: 760 },
   ];
   const COLS = ['top', 'mid', 'low', 'hor', 'fog', 'cloud', 'shade', 'sea', 'hemi', 'ground', 'sun', 'glow'], NUMS = ['hemiK', 'sunK', 'el', 'glowK', 'stars', 'near', 'far'];
@@ -64,7 +64,7 @@
     const own = (m) => { owned.mats.push(m); if (m.map) owned.texs.push(m.map); return m; };
     const lam = own(new T.MeshLambertMaterial({ vertexColors: true }));
     const lit = own(new T.MeshBasicMaterial({ vertexColors: true }));           // things that glow: they ignore the light
-    const flat = own(new T.MeshBasicMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })); // paint lying on the road
+    const foot = own(new T.MeshBasicMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -12 })); // the first metres of the ramp, lying on the asphalt (the city's road paint is pulled forward the same way)
 
     /* ---------- colours ---------- */
     const cc = {};
@@ -90,7 +90,7 @@
     function at(s, lat, up, out) {
       out = out || {};
       path.at(s, tmp);
-      out.x = tmp.x + tmp.nx * (lat || 0); out.z = tmp.z + tmp.nz * (lat || 0); out.y = altAt(s) + (up || 0);
+      out.s = s; out.x = tmp.x + tmp.nx * (lat || 0); out.z = tmp.z + tmp.nz * (lat || 0); out.y = altAt(s) + (up || 0);
       out.tx = tmp.tx; out.tz = tmp.tz; out.nx = tmp.nx; out.nz = tmp.nz;
       out.ry = Math.atan2(tmp.tx, tmp.tz); out.pitch = Math.atan2(altAt(s + 1) - altAt(s - 1), 2);
       return out;
@@ -146,13 +146,13 @@
       return m;
     };
     const soups = {}; // 'layer|chunk|material' → Soup
-    const MATS = { lam, lit, flat };
+    const MATS = { lam, lit, foot };
     /* the soup for things near s metres along. layer: 'under' (seen from the city too) or 'above' */
     function soupAt(s, mat, layer) {
       const key = (layer || 'above') + '|' + Math.max(0, Math.floor(s / CHUNK)) + '|' + (mat || 'lam');
       return soups[key] || (soups[key] = new Soup());
     }
-    const PIERCE = (() => { for (let s = M.lift; s < L; s += 2) if (altAt(s) >= DECK) return s; return M.clouds; })(); // where the ramp goes into the cloud
+    const PIERCE = M.pierce; // where the ramp goes into the cloud
     const layerOf = (s) => (s < PIERCE + 30 ? 'under' : 'above');
 
     /* ---------- light and fog: taken over from the city, so that they can change along the way ---------- */
@@ -223,24 +223,22 @@
     const moon = new T.Sprite(own(new T.SpriteMaterial({ map: moonTex, fog: false, depthWrite: false, transparent: true, opacity: 0 })));
     moon.scale.set(300, 300, 1); moon.renderOrder = -9;
     const endDir = at(L - 20, 0, 0, {});
-    moon.position.set(endDir.tx * 0.82 + endDir.nx * -0.3, 0.5, endDir.tz * 0.82 + endDir.nz * -0.3).normalize().multiplyScalar(1700);
+    moon.position.set(endDir.tx * 0.9 + endDir.nx * 0.42, 0.33, endDir.tz * 0.9 + endDir.nz * 0.42).normalize().multiplyScalar(1700); // to the right of the palace as she rides in
     skyGroup.add(moon);
-    /* the stars: points high in the dome, they come out toward the end */
-    const starMat = own(new T.PointsMaterial({ size: 7, sizeAttenuation: true, map: discTex, transparent: true, opacity: 0, depthWrite: false, fog: false, vertexColors: true }));
-    (() => {
-      const rnd = K.rng(31), pos = [], col = [], n = low ? 110 : 190;
-      for (let i = 0; i < n; i++) {
-        const az = rnd() * TAU, e = 0.16 + rnd() * rnd() * 1.2, r = 1750, big = rnd() < 0.14 ? 1 : 0.55 + rnd() * 0.3;
-        pos.push(Math.sin(az) * Math.cos(e) * r, Math.sin(e) * r, Math.cos(az) * Math.cos(e) * r);
-        const c = mix(C('#ffffff'), C(rnd() < 0.5 ? '#ffe9a8' : '#cfe0ff'), rnd() * 0.6); col.push(c[0] * big, c[1] * big, c[2] * big);
-      }
+    /* the stars: points high in the dome, they come out toward the end. (On a pale sky only white is brighter than the sky.) */
+    const starMat = own(new T.PointsMaterial({ size: 9, sizeAttenuation: true, map: discTex, transparent: true, opacity: 0, depthWrite: false, fog: false, color: '#ffffff' }));
+    const bigStarMat = own(new T.PointsMaterial({ size: 20, sizeAttenuation: true, map: discTex, transparent: true, opacity: 0, depthWrite: false, fog: false, color: '#fffbe0' }));
+    const starSets = [[starMat, low ? 90 : 170, 31], [bigStarMat, low ? 14 : 26, 57]].map(([mat, n, seed]) => {
+      const rnd = K.rng(seed), pos = [];
+      for (let i = 0; i < n; i++) { const az = rnd() * TAU, e = 0.3 + rnd() * rnd() * 1.1, r = 1750; pos.push(Math.sin(az) * Math.cos(e) * r, Math.sin(e) * r, Math.cos(az) * Math.cos(e) * r); }
       const g = new T.BufferGeometry();
-      g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+      g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
       owned.geoms.push(g);
-      const pts = new T.Points(g, starMat);
+      const pts = new T.Points(g, mat);
       pts.frustumCulled = false; pts.renderOrder = -9;
       skyGroup.add(pts);
-    })();
+      return pts;
+    });
 
     /* inside the cloud: a white veil round the camera, behind everything near (her, the road), in front of the rest */
     const veil = new T.Mesh(new T.SphereGeometry(30, 12, 8), own(new T.MeshBasicMaterial({ color: '#f7fbff', side: T.BackSide, fog: false, transparent: true, opacity: 0, depthWrite: false })));
@@ -256,12 +254,13 @@
     sea.rotation.x = -PI / 2; sea.position.y = DECK - 2.5; sea.frustumCulled = false;
     above.add(sea);
     /* puffs: a few squashed balls each. Seen from above only their tops matter, so the far ones are half balls. */
-    const puffHalf = K.g(new T.SphereGeometry(1, 8, 4, 0, TAU, 0, PI * 0.56), '#ffffff'), puffFull = K.g(new T.IcosahedronGeometry(1, 1), '#ffffff');
+    const puffHalf = K.g(new T.SphereGeometry(1, 7, 3, 0, TAU, 0, PI * 0.56), '#ffffff'), puffFull = K.g(new T.SphereGeometry(1, 7, 5), '#ffffff');
     const skyTmp = {};
-    /* a cloud at x, y (its waist), z of width w; part: 'half' | 'full' */
-    function cloud(soup, x, y, z, w, rnd, part, sAlong, squash) {
+    const puffFar = K.g(new T.SphereGeometry(1, 6, 2, 0, TAU, 0, PI * 0.5), '#ffffff'); // the far ones are simpler still
+    /* a cloud at x, y (its waist), z of width w; part: 'half' | 'far' | 'full'; balls: how many (2…4 if not given) */
+    function cloud(soup, x, y, z, w, rnd, part, sAlong, squash, balls) {
       const k = skyAt(sAlong, skyTmp), top = k.cloud, shade = k.shade, hgt = (squash || 0.5);
-      const n = 2 + Math.floor(rnd() * 3), ry = rnd() * TAU, geo = part === 'full' ? puffFull : puffHalf;
+      const n = balls || 2 + Math.floor(rnd() * 3), ry = rnd() * TAU, geo = part === 'full' ? puffFull : part === 'far' ? puffFar : puffHalf;
       for (let j = 0; j < n; j++) {
         const off = (j - (n - 1) / 2) * w * 0.34, r = w * (0.3 + rnd() * 0.16) * (1 - Math.abs(j - (n - 1) / 2) / (n + 1));
         const ry2 = r * hgt * (0.85 + rnd() * 0.4);
@@ -273,25 +272,26 @@
       const rnd = K.rng(4601), s0 = PIERCE - 60;
       let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
       for (let i = Math.floor(s0 / data.step); i < NP; i++) { x0 = Math.min(x0, R[i * 2]); x1 = Math.max(x1, R[i * 2]); z0 = Math.min(z0, R[i * 2 + 1]); z1 = Math.max(z1, R[i * 2 + 1]); }
-      const REACH = low ? 380 : 520, CELL = low ? 34 : 27;
+      const REACH = low ? 360 : 470, CELL = low ? 36 : 30;
       for (let gx = x0 - REACH; gx < x1 + REACH; gx += CELL) for (let gz = z0 - REACH; gz < z1 + REACH; gz += CELL) {
         const x = gx + rnd() * CELL, z = gz + rnd() * CELL, q = nearWay(x, z, s0), d = q.d;
         if (d > REACH) continue;
         // near the way every cell has a cloud; further out they thin out and grow
-        const keep = d < 110 ? 1 : 110 / d;
+        const keep = d < 100 ? 1 : 100 / d;
         if (rnd() > keep * keep * (low ? 0.8 : 1)) continue;
         const w = (d < 110 ? 16 + rnd() * 16 : 26 + rnd() * 40 + d * 0.06), room = altAt(q.s) - DECK;
         // right under the road the tops stay below it
         let lift = rnd() * 2.2 + (d > 60 ? rnd() * Math.min(9, d * 0.03) : 0);
         const squash = d < 14 ? Math.min(0.5, Math.max(0.12, (room - 2.5) / (w * 0.4))) : 0.42 + rnd() * 0.2;
         if (d < 14) lift = Math.min(lift, Math.max(-2, room - 4 - w * 0.4 * squash));
-        cloud(soupAt(q.s, 'lit' + (((gx / CELL) ^ (gz / CELL)) & 1 ? 'A' : 'B'), 'above'), x, DECK - 1.2 + lift, z, w, rnd, 'half', q.s, squash);
+        // (the sea is merged in pieces of 300 m, in two sets that bob out of step)
+        cloud(soupAt(Math.floor(q.s / 300) * 300, 'lit' + (((gx / CELL) ^ (gz / CELL)) & 1 ? 'A' : 'B'), 'above'), x, DECK - 1.2 + lift, z, w, rnd, d > 150 ? 'far' : 'half', q.s, squash);
       }
     })();
     /* the bank of cloud she rides up into, seen from the street: whole balls around the place where the ramp goes in */
     (function cloudBank() {
       const rnd = K.rng(77), c = at(PIERCE, 0, 0, {}), soup = soupAt(PIERCE, 'lit', 'under');
-      const n = low ? 46 : 70;
+      const n = low ? 36 : 52;
       for (let i = 0; i < n; i++) {
         const a = rnd() * TAU, d = 10 + Math.sqrt(rnd()) * 150, x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d * 0.8;
         const q = nearWay(x, z, PIERCE - 90, PIERCE + 60);
@@ -337,7 +337,8 @@
       for (let s = M.lift - 2; s < ROAD_END; s += 2) {
         at(s, 0, 0, a); at(s + 2, 0, 0, b);
         // the ramp grows out of the street: at its foot it lies a finger above the asphalt and its rims rise from nothing
-        const fa = clamp((s - M.lift) / 6, 0, 1), fb = clamp((s + 2 - M.lift) / 6, 0, 1);
+        // (and inside the gate of the city the rims sink away: the road becomes the paving of the square)
+        const fa = clamp((s - M.lift) / 6, 0, 1) * clamp((M.gate + 8 - s) / 8, 0, 1), fb = clamp((s + 2 - M.lift) / 6, 0, 1) * clamp((M.gate + 6 - s) / 8, 0, 1);
         a.y += 0.035; b.y += 0.035;
         roadAt(s + 1, ka);
         const layer = layerOf(s), slab = soupAt(s, 'lam', layer), glow = soupAt(s, 'lit', layer);
@@ -349,7 +350,7 @@
           if (l1 - l0 < 0.01) continue;
           let col = j === 3 ? (tile ? ka.a : ka.b) : RB[j < 3 ? j : j - 1];
           if (j !== 3 && !tile) col = mix(col, [1, 1, 1], 0.14);
-          glow.quad(pt(a, l0, 0), pt(a, l1, 0), pt(b, l1, 0), pt(b, l0, 0), col);
+          (a.y < 1.2 ? soupAt(s, 'foot', layer) : glow).quad(pt(a, l0, 0), pt(a, l1, 0), pt(b, l1, 0), pt(b, l0, 0), col);
         }
         // the slab under it: its sides and its belly (not where it still lies on the street)
         if (altAt(s + 2) > 0.5) {
@@ -369,21 +370,19 @@
           if (fa >= 1 && s % 6 === 0) { const g = pt(a, sd * (HALF + RIM_W * 0.52), RIM_H + 0.26), gc = (s / 6) & 1 ? ka.gem : mix(ka.rim, [1, 1, 1], 0.2); glow.add(gemGeo, g[0], g[1], g[2], a.ry, 1, 1, 1, () => gc); }
         });
         // the lane dashes (on the rainbow the bands themselves are the lanes)
-        if (r < 0.5 && (Math.floor(s / 2) % 3) === 0) {
-          const paint = soupAt(s, 'flat', layer);
-          [-0.875, 0.875].forEach((l) => paint.quad(pt(a, l - 0.09, 0.012), pt(a, l + 0.09, 0.012), pt(b, l + 0.09, 0.012), pt(b, l - 0.09, 0.012), ka.dash));
-        }
+        if (r < 0.5 && (Math.floor(s / 2) % 3) === 0) [-0.875, 0.875].forEach((l) => glow.quad(pt(a, l - 0.09, 0.03), pt(a, l + 0.09, 0.03), pt(b, l + 0.09, 0.03), pt(b, l - 0.09, 0.03), ka.dash));
       }
     })();
 
     /* ---------- the scenery of each stretch (ride-sky-scene.js) ---------- */
     const movers = []; // { s, r, update(dt, t, sNow) } — animated things; only those near her are moved
-    const kit = { T, K, data, DECK, L, M, PIERCE, HALF, low, C, mix, at, altAt, nearWay, skyAt, roadAt, soupAt, layerOf, Soup, cloud, own, owned, under, above, movers, lam, lit, flat, RAINBOW, RB, info: {} };
+    const kit = { T, K, data, DECK, L, M, PIERCE, HALF, low, C, mix, at, altAt, nearWay, skyAt, roadAt, soupAt, layerOf, Soup, cloud, own, owned, under, above, movers, lam, lit, discTex, RAINBOW, RB, info: {} };
     let scenery = null;
     if (S.scenery) { try { scenery = S.scenery(kit); } catch (e) { console.error('sky scenery failed', e); } }
 
     /* ---------- meshes ---------- */
     const bob = []; // the clouds of the sea breathe: two sets, out of step
+    const chunks = []; // every merged mesh, to leave out the ones the fog hides anyway
     Object.keys(soups).forEach((key) => {
       const [layer, chunk, mat] = key.split('|');
       const cloudSet = mat === 'litA' || mat === 'litB';
@@ -391,23 +390,29 @@
       if (!m) return;
       if (cloudSet) { m.matrixAutoUpdate = true; bob.push({ m, ph: (mat === 'litA' ? 0 : PI) + chunk * 0.7 }); }
       (layer === 'under' ? under : above).add(m);
+      chunks.push(m);
     });
 
     /* ---------- the world ---------- */
     let tris = 0, meshes = 0;
+    const parts = {};
     root.traverse((o) => {
       if (!o.isMesh && !o.isSprite && !o.isPoints) return;
       meshes++;
-      if (o.geometry && o.isMesh) tris += ((o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3) * (o.isInstancedMesh ? o.count : 1);
+      if (!o.geometry || !o.isMesh) return;
+      const n = ((o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3) * (o.isInstancedMesh ? o.count : 1);
+      tris += n;
+      const key = o.name.indexOf('sky-') === 0 ? o.name.split('-')[1] : 'models';
+      parts[key] = Math.round((parts[key] || 0) + n);
     });
     const gate = at(M.gate, 0, 0, {}), fin = at(L, 0, 0, {});
     const info = Object.assign({
-      meshes, tris: Math.round(tris), buildMs: 0, city: city.info, deck: DECK, pierce: PIERCE,
+      meshes, tris: Math.round(tris), parts, buildMs: 0, city: city.info, deck: DECK, pierce: PIERCE,
       roadEnd: M.lift, parkLat: city.info.parkLat, kerbLat: city.info.kerbLat, halfWidth: HALF,
       gate: { s: M.gate, x: gate.x, y: gate.y, z: gate.z }, finish: { s: L, x: fin.x, y: fin.y, z: fin.z },
     }, kit.info);
 
-    const now = {}, col = new T.Color(), v3 = new T.Vector3();
+    const now = {}, col = new T.Color(), riderAt = {};
     let sNow = 0, sIdx = 0, lastPaint = -1e9, isAbove = null;
     /* where along the way is she? the route point nearest to the camera, searched from the last one (the camera
        rides 5 m behind her) */
@@ -425,7 +430,7 @@
       group: root, sunDir, info, city,
       heightAt: altAt, at, skyAt,
       parkOk(s, side) { return s < M.lift - 14 && !!(city.parkOk && city.parkOk(s, side)); },
-      ready: Promise.all([city.ready, K.fontsReady().then(() => { if (scenery && scenery.fonts && !world.gone) scenery.fonts(); })]),
+      ready: Promise.all([city.ready, K.fontsReady().then(() => { if (scenery && !world.gone) scenery.fonts(); })]),
       update(dt, t, camera, s) {
         if (camera) sNow = s === undefined ? follow(camera) : s;
         const camY = camera ? camera.position.y : 0;
@@ -455,6 +460,8 @@
           sea.position.x = camera.position.x; sea.position.z = camera.position.z;
         }
         veil.visible = white > 0.01; veil.material.opacity = white;
+        // what lies beyond the fog is not drawn at all
+        if (camera) for (let i = 0; i < chunks.length; i++) { const c = chunks[i], bs = c.geometry.boundingSphere; c.visible = camera.position.distanceTo(bs.center) - bs.radius < f.far; }
         if (up) {
           if (Math.abs(sNow - lastPaint) > 3) { lastPaint = sNow; paintDome(now); }
           seaMat.color.setRGB(now.sea[0], now.sea[1], now.sea[2]);
@@ -462,16 +469,30 @@
           sunSp.position.set(Math.sin(SUN_AZ) * Math.cos(e), Math.sin(e), Math.cos(SUN_AZ) * Math.cos(e)).multiplyScalar(1700);
           sunSp.scale.set(sz, sz, 1);
           sunSp.material.color.setRGB(now.glow[0], now.glow[1], now.glow[2]).lerp(col.set('#ffffff'), 0.45);
-          starMat.opacity = now.stars; moon.material.opacity = smooth(now.stars * 1.2);
+          starMat.opacity = now.stars * 0.9; bigStarMat.opacity = now.stars * (0.75 + 0.25 * Math.sin(t * 2.3)); // the big ones twinkle
+          starSets[0].visible = starSets[1].visible = moon.visible = now.stars > 0.01;
+          moon.material.opacity = smooth(now.stars * 1.2);
           for (let i = 0; i < bob.length; i++) { const b = bob[i]; b.m.position.y = Math.sin(t * 0.5 + b.ph) * 0.55; }
         }
-        for (let i = 0; i < movers.length; i++) { const m = movers[i]; if (Math.abs(m.s - sNow) < (m.r || 260) && (m.under ? !up || sNow < PIERCE + 60 : up)) m.update(dt, t, sNow, camera); }
+        // the things that move: only the ones near her are shown and moved
+        at(sNow, 0, 1.1, riderAt);
+        for (let i = 0; i < movers.length; i++) {
+          const m = movers[i], d = m.s - sNow;
+          const near = (m.under ? !up : up) && d < (m.r || 240) && -d < (m.back || 50);
+          // from far away a creature is one still mesh; close by it is the living model
+          const live = near && (!m.still || (d < (m.liveAt || 70) && -d < 40));
+          if (m.obj && m.obj.visible !== live) m.obj.visible = live;
+          if (m.still && m.still.visible !== (near && !live)) m.still.visible = near && !live;
+          if (live) m.update(dt, t, sNow, camera, riderAt);
+        }
         if (!up && city.update) city.update(dt, t, camera);
       },
       dispose() {
         world.gone = true;
-        scene.remove(root);
         if (scenery && scenery.dispose) scenery.dispose();
+        // the creatures and the signs are not ours to list one by one: free whatever hangs under the sky
+        root.traverse((o) => { if (o.geometry) o.geometry.dispose(); (o.material ? [].concat(o.material) : []).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); });
+        scene.remove(root);
         owned.geoms.forEach((x) => x.dispose());
         owned.texs.forEach((x) => x.dispose());
         owned.mats.forEach((x) => x.dispose());

@@ -64,6 +64,21 @@ up to five bikes. Some parts cost stars; she can try them on the bike before buy
 | `js/ride.js` | the game: steering, her speed (▲ ▼ or the arrow keys, up to about 115 km/h), hop and bell, what lies on the road, the red lights, the arrival |
 | `js/ride-garage.js`, `css/garage.css` | the bike workshop: she designs her bikes on a turning stand in 3D, tries parts on, buys them with stars |
 
+### The way to Dinosaur City
+
+An imaginary place to ride to (Arielle's idea): the ride starts on her own street, a rainbow ramp lifts off it,
+climbs over the roofs and through the clouds, and becomes a road in the sky: a sea of clouds with unicorns, floating
+islands with long-necks and pterodactyls, rainbow rings and a volcano that puffs hearts, and at the end Dinosaur City.
+These files build the route, the world and the creatures; the game does not load them yet.
+
+| File | What it holds |
+|---|---|
+| `js/ride-sky.js` | the route, drawn in code: a list of straights and bends and a list of heights (`DU.rideSky.data()`, in the shape of the school route plus `alt`, the height of every point, and `zones`, the stretches) |
+| `js/ride-sky-world.js` | `DU.rideSky.build()`: the real city below, the sea of clouds, the road, and the sky, fog and light that change along the way (blue, then peach and pink, then lilac with stars) |
+| `js/ride-sky-scene.js` | what stands along the road, stretch by stretch: islands, waterfalls, rainbows, the volcano, and who lives there |
+| `js/ride-sky-city.js` | Dinosaur City: the gate, the square, the egg houses, the towers, the palace, the welcome |
+| `js/ride-sky-models.js` | `DU.rideSky.make()`: friendly dinosaurs (T-rex, long-neck, three-horn, stegosaurus, pterodactyl, babies), unicorns, eggs that hatch, sleepy clouds, rainbow rings, hearts, balloons |
+
 Map data © OpenStreetMap contributors, available under the Open Database License.
 
 The font is Fredoka (SIL Open Font License), bundled in `fonts/` so the game loads nothing from other sites.
