@@ -40,6 +40,10 @@
       [1568, 2093, 2637].forEach((f, i) => api.tone(f, { at: 1.3 + i * 0.1, dur: 0.3, type: 'sine', vol: 0.07 }));
     },
 
+    /* at the end: the balloon arch and her friends, in the strip of the square that the city leaves free for them
+       (the dinosaurs and the unicorns who welcome her are part of the world: ride-sky-city.js) */
+    scenery(api) { api.std.arch(api); api.std.friends(api); },
+
     /* ---------- what lies on the way ---------- */
     level(api) {
       const kit = api.kit(), d = api.data, M = d.marks, L = api.L, LANES = api.LANES, B = kit.BEATS, items = kit.items;
@@ -85,7 +89,8 @@
       kit.zone({ a: M.spiral + 12, b: M.city - 26, list: ['hearts', 'zig', 'puff', 'hearts', 'line', 'gem', 'jumpstars', 'hearts', 'puffs'] });
       kit.beat('bigstar', M.city);
       // the glide down, and the runway of stars in through the gate
-      kit.zone({ a: M.city + 34, b: L - 56, list: ['zig', 'rings', 'line', 'jumpstars', 'egg', 'rings', 'zig'], fixed: true });
+      kit.zone({ a: M.city + 34, b: L - 76, list: ['zig', 'rings', 'line', 'jumpstars', 'egg', 'rings', 'zig'], fixed: true });
+      kit.beat('baby', L - 71); // one more baby runs across where the road comes onto the island of the city
       kit.line(L - 44, 10, 0, 3.2);
       return items;
     },
@@ -93,29 +98,50 @@
     /* ---------- every frame: the things of ours that the game does not know ---------- */
     update(dt, api) {
       if (!R) return;
-      const g = api.g, riding = g.mode === 'ride', near = (it, ahead, wide) => { const ds = it.s - g.s; return ds < ahead && ds > -g.moved - 0.9 && Math.abs(it.lat - g.lat) < wide; };
+      const g = api.g, riding = g.mode === 'ride';
+      const near = (it, ahead, wide) => { const ds = it.s - g.s; return ds < ahead && ds > -g.moved - 0.9 && Math.abs(it.lat - g.lat) < wide; };
+      const two = (f1, f2, type) => { api.tone(f1, { dur: 0.18, type, vol: 0.12 }); api.tone(f2, { at: 0.08, dur: 0.3, type: 'sine', vol: 0.1 }); };
       // the moments of the way: the take-off, and coming out above the clouds
-      if (!R.off && g.s >= R.M.lift && riding) { R.off = true; api.tone(330, { dur: 0.9, type: 'sine', vol: 0.1, slide: 1320 }); api.tone(440, { at: 0.15, dur: 0.8, type: 'triangle', vol: 0.05, slide: 1760 }); }
+      if (!R.off && g.s >= R.M.lift && riding) {
+        R.off = true;
+        api.say('<b>ממריאים!</b>', 1300, 'title low');
+        api.tone(330, { dur: 0.9, type: 'sine', vol: 0.1, slide: 1320 }); api.tone(440, { at: 0.15, dur: 0.8, type: 'triangle', vol: 0.05, slide: 1760 });
+      }
       if (!R.out && g.s >= R.M.pierce + 34 && riding) { R.out = true; [1047, 1319, 1568, 2093, 2637].forEach((f, i) => api.tone(f, { at: i * 0.08, dur: 0.4, type: 'sine', vol: 0.07 })); }
       if (riding) {
         // an egg hatches when she rides up to it: the baby pops out to see her pass
-        R.eggs.forEach((it) => { if (it.got || it.done || !near(it, 4 + g.v * 0.4, 1.05)) return; it.got = true; it.obj.userData.hatch(); api.addStars(5, '+5', 'big'); api.sfx.big(); api.tone(1400, { at: 0.2, dur: 0.12, type: 'triangle', vol: 0.09, slide: 2100 }); });
-        // a ring she rides through flashes; one after the other they sing higher
+        R.eggs.forEach((it) => {
+          if (it.got || it.done || !near(it, 4 + g.v * 0.4, 1.05)) return;
+          it.got = true; it.obj.userData.hatch();
+          api.addStars(5, '+5', 'big'); api.sfx.big(); api.tone(1400, { at: 0.2, dur: 0.12, type: 'triangle', vol: 0.09, slide: 2100 });
+        });
+        // a ring she rides through flashes; one ring after the other, they sing higher
         R.rings.forEach((it) => {
-          if (it.got || it.done || it.s - g.s > 0.4) return;
-          if (near(it, 0.4, 1.15)) { it.got = true; it.obj.userData.pass(); api.addStars(3, '+3', 'big'); R.streak = Math.min(NOTES.length - 2, g.t - (R.ringT || -9) < 2.5 ? R.streak + 1 : 0); R.ringT = g.t; api.tone(NOTES[R.streak], { dur: 0.16, type: 'sine', vol: 0.12 }); api.tone(NOTES[R.streak + 1], { at: 0.08, dur: 0.24, type: 'sine', vol: 0.1 }); }
+          if (it.got || it.done || !near(it, 0.4, 1.15)) return;
+          it.got = true; it.obj.userData.pass();
+          R.streak = g.t - (R.ringT || -9) < 2.5 ? Math.min(NOTES.length - 2, R.streak + 1) : 0; R.ringT = g.t;
+          api.addStars(3, '+3', 'big'); two(NOTES[R.streak], NOTES[R.streak + 1], 'sine');
         });
         // the big rings over the whole road cannot be missed: each one flashes and gives two stars
-        R.gates.forEach((q, i) => { if (q.got || g.s < q.s) return; q.got = true; if (g.s - q.s > 6) return; q.obj.userData.pass(); api.addStars(2, '+2', 'big'); api.tone(NOTES[Math.min(i, NOTES.length - 3)], { dur: 0.3, type: 'triangle', vol: 0.11 }); api.tone(NOTES[Math.min(i, NOTES.length - 3) + 2], { at: 0.09, dur: 0.36, type: 'sine', vol: 0.09 }); });
+        R.gates.forEach((q, i) => {
+          if (q.got || g.s < q.s) return;
+          q.got = true; q.obj.userData.pass();
+          const k = Math.min(i, NOTES.length - 3);
+          api.addStars(2, '+2', 'big'); two(NOTES[k], NOTES[k + 2], 'triangle');
+        });
         // she rang: the dinosaurs who hear her wave and hop
         if ((g.rang || 0) !== R.rang) {
           R.rang = g.rang || 0;
           const k = api.world && api.world.hello ? api.world.hello(g.s) : 0;
-          if (k) { g.polite += k; api.addStars(k, 'שלום! ‎+' + k, 'thanks'); setTimeout(() => { if (!api.dead()) api.sfx.thanks(); }, 260); }
+          if (k) { g.polite += k; api.addStars(k, 'שלום! \u200E+' + k, 'thanks'); setTimeout(() => { if (!api.dead()) api.sfx.thanks(); }, 260); }
         }
       }
       // a baby that crosses looks where it goes, whichever way the game turned it
-      R.babies.forEach((it) => { if (it.done) return; const q = api.P.at(it.s, tmpP); it.obj.userData.turn(Math.atan2(q.nx * it.dir, q.nz * it.dir) - it.obj.rotation.y); });
+      R.babies.forEach((it) => {
+        if (it.done) return;
+        const q = api.P.at(it.s, tmpP);
+        it.obj.userData.turn(Math.atan2(q.nx * it.dir, q.nz * it.dir) - it.obj.rotation.y);
+      });
       // pterodactyls: each one circles off to the side until she comes near, then swoops across the road ahead of her
       R.pteros.forEach((it, i) => {
         if (it.done) return;
@@ -123,7 +149,10 @@
         if (!it.t0) {
           const a = g.t * 0.45 + i * 2.1;
           api.place(obj, it.s + Math.cos(a) * 7, -it.dir * (34 + Math.sin(a) * 7), 12 + Math.sin(a * 2) * 1.5, false, -it.dir * (a + PI / 2));
-          if (riding && !it.flown && it.s - g.s < 18 + g.v * 1.4 && it.s - g.s > 4) { it.t0 = g.t; it.flown = true; api.tone(700, { dur: 0.5, type: 'sine', vol: 0.06, slide: 1500 }); api.tone(1500, { at: 0.45, dur: 0.6, type: 'sine', vol: 0.05, slide: 600 }); }
+          if (riding && !it.flown && it.s - g.s < 18 + g.v * 1.4 && it.s - g.s > 4) {
+            it.t0 = g.t; it.flown = true;
+            api.tone(700, { dur: 0.5, type: 'sine', vol: 0.06, slide: 1500 }); api.tone(1500, { at: 0.45, dur: 0.6, type: 'sine', vol: 0.05, slide: 600 }); // whoosh
+          }
           return;
         }
         const u = (g.t - it.t0) / 3.6;

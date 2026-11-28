@@ -56,7 +56,7 @@
     const DECK = data.deck, L = data.length, M = data.marks;
 
     /* ---------- the real city, for the take-off ---------- */
-    const city = DU.rideWorld.build(scene, DU.RIDE_DATA, opts);
+    const city = DU.rideWorld.build(scene, DU.RIDE_DATA, Object.assign({}, opts, { place: 'school' })); // (it is the city of the school ride, whatever place asked for this world)
     const root = new T.Group();
     root.name = 'rideSky';
     scene.add(root);
