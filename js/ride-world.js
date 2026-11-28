@@ -7,7 +7,9 @@
      world.dispose()
      world.sunDir                  unit Vector3 from the ground toward the sun
      world.ready                   Promise: resolves when the sign texts are redrawn in the game font
-     world.info                    { meshes, tris, buildMs, roadEnd, parkLat, kerbLat, gate: { s, x, z }, parts }
+     world.info                    { meshes, tris, buildMs, roadEnd, parkLat, kerbLat, gate: { s, x, z }, parts,
+                                     kiosk: { x, z, ry } (where the kiosk stands), parkEnd (only with data.roadEnd:
+                                     up to where the game may park cars) }
      world.parkOk(s, side)         may the game park a car at s metres along, side -1 (left) / 1 (right)? false at side
                                    streets, driveways and crossings
      world.group                   the Group that holds everything (already added to the scene)
@@ -17,11 +19,18 @@
    and ≥ 5.2 m around the school gate (no tree within 9 m there, so a finish arch fits). Tree crowns start above 4.3 m.
    Everything is generated in code: flat ground layers, extruded footprints with procedural facade tiles,
    instanced trees. No shadow maps: soft "leafy shade" decals instead.
-   What the data of another ride may add (ride-data-sarona.js, ride-data-yarkon.js): roadEnd (metres along: where the
-   car streets end; 545 on the ride to school), humps (where the raised crossings of the road stretch are),
-   keep ([x, z, radius]…: clearings where no tree may stand), buildings of kind 't' (a Templer house: h is the height
-   of the eaves, a red tiled roof goes on top; rf: 'hipped'), areas of kind 'river' (soft banks, no fountain) and 'lawn'
-   (open grass without trees). A ride longer than the one to school is dressed less deep to its sides (`thin`). */
+   What the data of another ride may add (ride-data-sarona.js, ride-data-yarkon.js). The ride to school has none of
+   these and keeps its own numbers, which are written here in the code:
+     roadEnd   metres along: where the car streets end and the bike paths begin (school: 545; data that says nothing:
+               at its first big crossing)
+     humps     where the raised crossings of the road stretch are (school: 198 and 404)
+     blvd      how many metres the ride runs along the boulevard of palms at its start (school: 50)
+     kiosk     { x, z, ry }: where the kiosk by the house stands, so it is the same one on every way (the school ride
+               finds the place by its route and tells it in info.kiosk)
+     keep      [[x, z, radius], …]: clearings where no tree may stand (room for a welcome scene)
+     buildings of kind 't' (a Templer house: h is the height of the eaves, a red tiled roof goes on top; rf: 'hipped'),
+     areas of kind 'river' (soft banks, streaks along the stream, no fountain) and 'lawn' (open grass without trees).
+   A ride longer than the one to school is dressed less deep to its sides (`thin`), so it costs about the same to draw. */
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
@@ -201,7 +210,10 @@
       return { d: Math.sqrt(best), s: bi, lat: (x - RX[bi]) * NX[bi] + (z - RZ[bi]) * NZ[bi] };
     }
     const at = (s, lat, out) => { path.at(s, out); out.x += out.nx * lat; out.z += out.nz * lat; return out; };
-    const ROAD_END = data.roadEnd || 545; // up to here the ride is on real roads with a parking strip (to school: boulevard + Dubnov)
+    /* up to here the ride is on real roads with a parking strip (to school: boulevard + Dubnov), then on bike paths.
+       The data of a place says where (data.roadEnd); without it the road stretch ends at the first big crossing */
+    const ROAD_END = data.roadEnd !== undefined ? data.roadEnd : data.school ? 545 : data.cross && data.cross.length ? data.cross[0].s0 + 1.5 : LEN - 22;
+    const BLVD = data.blvd !== undefined ? data.blvd : 50; // the first metres run along the boulevard of palms
     /* a longer ride is dressed less deep to its sides, so every ride costs about the same to draw (1 on the ride to school) */
     const thin = Math.max(1, LEN / 1050);
     const cross = data.cross || [];
@@ -553,7 +565,7 @@
     }
     pathBits.forEach(([a, b]) => { for (let s = a + 14; s < b - 10; s += 46) { bikeMark(s, -1.9); bikeMark(s + 23, 1.9); } });
     for (let s = 74; s < ROAD_END - 40; s += 78) bikeMark(s, 0);
-    (data.humps || [198, 404]).forEach((s0) => { // raised crossings on the road stretch
+    (data.humps || (data.school ? [198, 404] : [])).forEach((s0) => { // raised crossings on the road stretch
       stripe(s0, s0 + 3.2, -3.8, 3.8, 0.093, C(PAL.asphaltDark));
       for (let i = 0; i < 7; i++) {
         const l = -3.3 + i * 1.1;
@@ -941,6 +953,7 @@
 
     /* ---------- the school ---------- */
     const info = { roadEnd: ROAD_END, parkLat: 5.0, kerbLat: KERB };
+    if (data.roadEnd !== undefined) info.parkEnd = ROAD_END - 8; // cars are parked along the whole road stretch (the game's own rule: up to the first big crossing)
     /* the end of the ride (data.end, or data.school): info.gate = where the route enters its area (22 m before the end when it has none) */
     const dest = data.end || data.school, destArea = dest && dest.a !== undefined ? data.areas[dest.a] : null;
     if (dest) {
@@ -1121,7 +1134,8 @@
       return true;
     }
     const streetKind = () => { const v = rnd(); return v < 0.66 ? 0 : v < 0.84 ? 1 : v < 0.9 ? 2 : v < 0.95 ? 3 : 4; };
-    // a little kiosk on the boulevard, a few metres from home
+    // a little kiosk on the boulevard, a few metres from home. The ride to school finds its place by the route; another
+    // ride is told where it stands (data.kiosk = { x, z, ry }, read off info.kiosk), so it is the same kiosk on every way
     (function kiosk() {
       const R6 = Math.PI / 6;
       const parts = [
@@ -1132,13 +1146,20 @@
         g(new T.BoxGeometry(0.5, 0.36, 0.36), '#ff9d4d', -1.05, 0.2, 1.75), g(new T.BoxGeometry(0.5, 0.36, 0.36), '#8fd16c', 1.05, 0.2, 1.75),
       ];
       for (let i = -2; i <= 2; i++) parts.push(g(new T.BoxGeometry(0.36, 0.06, 1.05), i % 2 ? '#ffffff' : PAL.red, i * 0.36, 2.32, 1.72, 0.36, 0, 0));
-      for (const lat of [-11.5, -13.5, 11.5, 13.5]) {
+      if (data.kiosk) {
+        const k = data.kiosk, r = routeNear(k.x, k.z), sg = r.s > 2 ? -1 : 1; // its name looks at her as she comes (or at the start, when it stands behind her)
+        solid.addAt(model(parts), k.x, 0, k.z, k.ry || 0, 1);
+        addSign('קיוסק', k.x + TX[r.s] * sg * 1.4, 3.7, k.z + TZ[r.s] * sg * 1.4, TX[r.s] * sg, TZ[r.s] * sg, 0.62, 'cafe');
+        reserve(k.x, k.z); keepOut.push([k.x, k.z, 5]);
+        info.kiosk = { x: k.x, z: k.z, ry: k.ry || 0 };
+      } else if (data.school) for (const lat of [-11.5, -13.5, 11.5, 13.5]) {
         at(27, lat, P1);
         if (!free(P1.x, P1.z, 2.4, 1.8) || roadEdge(P1.x, P1.z, false) < 1.6 || crowded(P1.x, P1.z, 3)) continue;
         const sg = lat < 0 ? 1 : -1; // it looks at the road
         solid.addAt(model(parts), P1.x, 0, P1.z, Math.atan2(P1.nx * sg, P1.nz * sg), 1);
         addSign('קיוסק', P1.x - P1.tx * 1.4, 3.7, P1.z - P1.tz * 1.4, -P1.tx, -P1.tz, 0.62, 'cafe');
         reserve(P1.x, P1.z); keepOut.push([P1.x, P1.z, 5]);
+        info.kiosk = { x: +P1.x.toFixed(1), z: +P1.z.toFixed(1), ry: +Math.atan2(P1.nx * sg, P1.nz * sg).toFixed(3) };
         break;
       }
     })();
@@ -1150,7 +1171,7 @@
         const lat = (clearAt(s) + 0.45) * sg;
         at(s, lat, P1);
         if (inCross(s) || !free(P1.x, P1.z, 0.35, 0.9)) continue;
-        const blvd = s < 50;
+        const blvd = s < BLVD;
         tree(P1.x, P1.z, blvd && rnd() < 0.3 ? 4 : streetKind());
         if (blvd || rnd() < 0.5) { at(s + 4, lat + sg * rr(3.6, 4.6), P2); if (free(P2.x, P2.z, 0.6, 0.9)) tree(P2.x, P2.z, blvd ? (rnd() < 0.5 ? 4 : 0) : streetKind()); }
       }

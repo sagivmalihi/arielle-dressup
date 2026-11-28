@@ -9,7 +9,10 @@
    group.userData = { kind, r (the radius it takes), h (height), update(dt, t) }.
    A piece rocks, turns and flutters by itself, but it never moves its own group: sailing a boat down the river or
    leading the ducks along the bank is for whoever placed them. The river, its banks and the lawns themselves are
-   drawn by the world from the map (ride-world.js). See the table at the bottom for kinds and options. */
+   drawn by the world from the map (ride-world.js). See the table further down for kinds and options.
+
+   The end of the file is the place itself, DU.RIDE_PLACE.yarkon (the contract: places.js): its texts, icon and
+   arrival sound, a level made for this long way, the welcome scene built from the pieces, and what moves in it. */
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
@@ -298,10 +301,11 @@
     add(grp, base);
     shadow(grp, r * 0.9, r * 0.9, -h * 0.25, -h * 0.2, 0.14);
     u.r = 3.5; u.h = h + r * 1.1; u.top = up;
-    const ph = seed * 1.3;
+    u.rise = 1; // 0 = the basket waits just above the winch, 1 = up at its full height
+    const ph = seed * 1.3, low = 2.6 - gy;
     u.update = function (dt, t) {
       sway.rotation.z = Math.sin(t * 0.31 + ph) * 0.035; sway.rotation.x = Math.cos(t * 0.23 + ph) * 0.025;
-      up.position.y = h + Math.sin(t * 0.4 + ph) * r * 0.12; up.rotation.y = t * 0.05 + ph;
+      up.position.y = low + (h - low) * Math.max(0, Math.min(1, u.rise)) + Math.sin(t * 0.4 + ph) * r * 0.12; up.rotation.y = t * 0.05 + ph;
       cable.scale.y = up.position.y + gy;
     };
     u.update(0, 0);
@@ -354,7 +358,8 @@
      kite         opts.h (how high above the hand), opts.back (how far behind, -Z), opts.shape 'diamond' | 'delta';
                   userData.fly = the kite itself (its position is inside the group)
      eucalyptus   opts.h; userData.crown = the radius of its leaves, userData.under = how high the lowest hang
-     balloon      opts.h (height of its middle), opts.r; userData.top = the part in the sky
+     balloon      opts.h (height of its middle), opts.r; userData.top = the part in the sky, userData.rise (0…1) = how
+                  far up its cable it is
      bridge       opts.span (along z), opts.w, opts.rise, opts.y (height of the ends); userData.deckY(z)
      ===================================================================================== */
   Y.make = function (kind, opts) {
@@ -369,4 +374,163 @@
     return grp;
   };
   Y.KINDS = Object.keys(MAKERS);
+
+  /* =====================================================================================
+     the place: DU.RIDE_PLACE.yarkon (the contract is written at the top of places.js)
+     ===================================================================================== */
+  const LIVE = new WeakMap(); // the api of a ride → what this ride put up
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const inPoly = (x, z, q) => { let c = false; for (let j = 0, k = q.length - 2; j < q.length; k = j, j += 2) if ((q[j + 1] > z) !== (q[k + 1] > z) && x < ((q[k] - q[j]) * (z - q[j + 1])) / (q[k + 1] - q[j + 1]) + q[j]) c = !c; return c; };
+  /* the stretches of the way where things may lie: not in a sharp corner (she cannot see behind it) nor right after
+     one, and not around a big crossing. → [[from, to], …], and .corners = the corners themselves (only stars go there) */
+  function stretches(api) {
+    const P = api.P, L = api.L, t = {}, corners = [], cr = api.data.cross || [];
+    const ang = (s) => { P.at(s, t); return Math.atan2(t.tx, t.tz); };
+    for (let s = 6; s < L - 6; s += 2) {
+      let d = Math.abs(ang(s + 4) - ang(s - 4));
+      if (d > PI) d = TAU - d;
+      if (d <= 0.55) continue;
+      const last = corners[corners.length - 1];
+      if (last && s - 14 <= last[1]) last[1] = s + 9; else corners.push([s - 14, s + 9]);
+    }
+    const cut = corners.concat(cr.map((c) => [c.s0 - 38, c.s1 + 12])).sort((a, b) => a[0] - b[0]);
+    const out = [];
+    let s = 64;
+    cut.forEach(([a, b]) => { if (a - s >= 26) out.push([s, a]); s = Math.max(s, b); });
+    if (L - 50 - s >= 26) out.push([s, L - 50]);
+    out.corners = corners.filter(([a, b]) => a > 40 && b < L - 50 && !cr.some((c) => b > c.s0 - 10 && a < c.s1 + 2));
+    return out;
+  }
+  const shuffled = (list, rnd) => { const a = list.slice(); for (let k = a.length - 1; k > 0; k--) { const j = (rnd() * (k + 1)) | 0; [a[k], a[j]] = [a[j], a[k]]; } return a; };
+  /* where the water of the river is beside the last metres of the way: bank(s) → [near, far], metres to her right
+     (null when the data has no river there). Measured once, every 4 m, and read off in between. */
+  function riverBanks(api, from, to) {
+    const river = api.data.areas.find((a) => a.k === 'river');
+    if (!river) return null;
+    const P = api.P, t = {}, STEP = 4, n = Math.ceil((to - from) / STEP) + 1, near = [], far = [];
+    for (let i = 0; i < n; i++) {
+      P.at(from + i * STEP, t);
+      let a = null, b = null;
+      for (let lat = 4; lat < 150 && b === null; lat += 1) {
+        const w = inPoly(t.x + t.nx * lat, t.z + t.nz * lat, river.p);
+        if (w && a === null) a = lat; else if (!w && a !== null) b = lat;
+      }
+      near.push(a); far.push(b === null ? (a === null ? null : 150) : b);
+    }
+    if (near.some((v) => v === null)) return null;
+    return function (s) {
+      const k = clamp((s - from) / STEP, 0, n - 1.001), i = Math.floor(k), f = k - i;
+      return [near[i] + (near[i + 1] - near[i]) * f, far[i] + (far[i + 1] - far[i]) * f];
+    };
+  }
+
+  (DU.RIDE_PLACE = DU.RIDE_PLACE || {}).yarkon = {
+    texts: { start: 'רוכבים לפארק הירקון!', arrive: 'הגעת לפארק הירקון!', row: 'הגעת לפארק הירקון', arch: 'איזה כיף בפארק!', archBack: 'כל הכבוד!' },
+    /* a tree by the water */
+    icon: '<svg class="du-ico" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M24 35V22" fill="none" stroke-width="3.6"/><circle cx="24" cy="15" r="11" fill="#7fcf88"/><path d="M3 37Q10 31 17 37T31 37T45 37V44H3Z" fill="#7fd0ee"/></g></svg>',
+    /* arriving: two ducks say hello, then a few drops of water */
+    sound(api) {
+      [0, 0.17, 0.62, 0.79].forEach((at, i) => api.tone(i % 2 ? 470 : 560, { at, dur: 0.11, type: 'square', vol: 0.03, slide: i % 2 ? 330 : 400 }));
+      [784, 988, 1175, 1568, 1175, 1568].forEach((f, i) => api.tone(f, { at: 0.22 + i * 0.12, dur: 0.3, type: 'sine', vol: 0.08 }));
+    },
+
+    /* the way to the park: quiet streets near home, then a long bike path north with four big crossings, and the
+       last metres on the bank of the river. It is twice as long as the way to school, so it has long easy runs of
+       stars for going fast, and the sharp corners stay empty. */
+    level(api) {
+      const kit = api.kit(), L = api.L, D = api.data, rnd = api.rnd, cr = D.cross || [];
+      const dest = D.streets.length ? D.streets[D.streets.length - 1][0] : L - 150; // where the park begins
+      const kindAt = (s) => (s < D.roadEnd ? 'street' : s >= dest - 6 ? 'park' : 'path');
+      const lists = {
+        street: ['line', 'zig', 'cones', 'jumpstars', 'puddle'].concat(shuffled(['bins', 'scooter', 'cat', 'barrier', 'ball', 'bigstar', 'heart', 'pigeons'], rnd)), // first what teaches her the tricks
+        path: shuffled(['cyclist', 'jumpstars', 'scooter', 'gem', 'puddle', 'zig', 'cones', 'bigstar', 'pigeons', 'heart'], rnd),
+        park: ['zig', 'heart', 'jumpstars', 'bigstar', 'line'],
+      };
+      const used = { street: 0, path: 0, park: 0 };
+      kit.line(14, 5, 0); // a quiet start
+      const free = stretches(api);
+      free.forEach(([a, b]) => {
+        const ci = cr.findIndex((c) => a >= c.s1 && a - c.s1 < 80); // the avenue this stretch is the first one after, if any
+        let s = a, first = true;
+        while (s + 26 <= b) {
+          const k = kindAt(s + 12), list = lists[k];
+          let name = list[used[k]++ % list.length], len = 26;
+          if (first && ci >= 0 && ci % 2 === 0 && k === 'path' && b - s > 60) { name = 'walkers'; used[k]--; len = 34; } // people on foot after a crossing
+          else if (k === 'path' && b - s > 150 && (first || rnd() < 0.2)) { // a long straight: stars down the middle, made for speed
+            used[k]--; name = '';
+            kit.line(s + 2, 14, 0, 3.4); kit.star(s + 52, 0, 0, 'gem'); len = 60;
+          }
+          if (name === 'cyclist' && s + 44 > b) name = 'line'; // a cyclist comes from far ahead: only on a long stretch
+          if (name) kit.beat(name, s);
+          first = false;
+          s += len + rnd() * 5;
+        }
+      });
+      free.corners.forEach(([a, b]) => kit.line(a + 6, Math.max(2, Math.floor((b - a - 9) / 3.5)), 0, 3.5)); // a thread of stars through each corner
+      cr.forEach((c) => kit.line(c.s0 + 3, Math.max(3, Math.floor((c.s1 - c.s0 - 4) / 3.4) + 1), 0, 3.4)); // stars across each avenue
+      kit.line(L - 44, 10, 0, 3.2); // and a runway of stars along the river
+      return kit.items;
+    },
+
+    /* what waits there: the balloon arch, a wooden bridge over the river ahead, pedal boats and ducks on the water,
+       reeds on the bank, picnics and children with kites on the lawn, eucalyptus trees, the balloon of the park
+       across the river; her friends */
+    scenery(api) {
+      const T = api.T, L = api.L, root = new T.Group(), moving = [], sail = [];
+      root.name = 'yarkon-welcome'; root.visible = false;
+      const keep = (o) => { root.add(o); if (o.userData.update && o.userData.update !== NOOP) moving.push(o); return o; };
+      /* yaw: 0 = its +Z looks the way she rides, PI = at her, PI / 2 = to her left (the lawn), -PI / 2 = at the river */
+      const put = (kind, s, lat, opts, yaw, y) => { const o = Y.make(kind, opts); api.place(o, s, lat, y || 0, false, yaw || 0); return keep(o); };
+      const bank = riverBanks(api, L - 96, L + 132);
+      let bal = null;
+      if (bank) {
+        const [b0, b1] = bank(L + 36);
+        put('bridge', L + 36, (b0 + b1) / 2, { seed: 1, span: b1 - b0 + 5 }, PI / 2);
+        // boats go round and round on long loops: [middle of the loop, half its length, metres off the near bank, half its width, seed, turns per second]
+        // (the swan turns its small rounds where the picture of her arrival looks: behind her on the river, to the side
+        // of the post of the arch)
+        [[L - 31, 6, 8, 2, 4, 0.12], [L + 9, 13, 20, 5, 1, -0.07], [L - 76, 14, 24, 4, 2, 0.058], [L + 62, 14, 13, 4.5, 3, -0.066]].forEach(([s0, A, off, B, seed, w]) => sail.push({ obj: put('boat', s0, bank(s0)[0] + off, { seed }), s0, A, off, B, w, ph: seed * 1.7 }));
+        // ducks paddle up and down along the bank
+        [[L - 22, 4, 2.4, 0.6, 1, 3, 0.11], [L + 5, 6, 5.5, 1, 2, 5, -0.08], [L - 64, 5, 6, 0.8, 3, 2, 0.085]].forEach(([s0, A, off, B, seed, n, w]) => sail.push({ obj: put('ducks', s0, bank(s0)[0] + off, { seed, n }), s0, A, off, B, w, ph: seed * 2.3 }));
+        [L - 54, L - 30, L - 8, L + 13, L + 27].forEach((s, i) => put('reeds', s, bank(s)[0] - 0.2, { seed: i + 1 }, PI / 2));
+        bal = put('balloon', L + 88, bank(L + 88)[1] + 12, { seed: 1, h: 27, r: 7 });
+      }
+      // the lawn: blankets, children who fly kites over the path, tall trees behind them
+      put('picnic', L - 22, -9.6, { seed: 1 }, 2.4); put('picnic', L - 4, -13, { seed: 2 }, 0.7); put('picnic', L + 16, -10.5, { seed: 3 }, -2.0);
+      [[L - 31, -14.5, 1, 9], [L + 6, -17.5, 2, 12], [L + 24, -15, 3, 8]].forEach(([s, lat, seed, h]) => {
+        const kid = api.make('kid', { seed: 20 + seed });
+        api.place(kid, s, lat, 0, false, -PI / 2 + (seed - 2) * 0.25); keep(kid); // she looks at the river, the string in her raised hand
+        if (kid.userData.wave) kid.userData.wave(1e7);
+        kid.updateMatrixWorld(true);
+        const hand = kid.localToWorld(new T.Vector3(-0.36, 1.12, 0)), kite = keep(Y.make('kite', { seed, h }));
+        kite.position.copy(hand); kite.rotation.y = kid.rotation.y + PI; // the kite flies out in front of her
+      });
+      [[L - 40, -20, 1], [L - 24, -27, 2], [L + 33, -21, 3], [L + 43, -13.5, 4], [L - 56, -12, 5]].forEach(([s, lat, seed]) => put('eucalyptus', s, lat, { seed }, seed));
+      api.scene.add(root);
+      LIVE.set(api, { root, moving, sail, bank, bal });
+      api.std.arch(api);
+      api.std.friends(api);
+    },
+
+    /* the welcome scene is far from most of the ride: it is shown, and moves, only when she is near.
+       The boats and the ducks go round on their loops, and the balloon climbs its cable as she comes. */
+    update(dt, api) {
+      const me = LIVE.get(api);
+      if (!me) return;
+      const g = api.g, L = api.L, near = g.s > L - 430;
+      if (me.root.visible !== near) me.root.visible = near;
+      if (!near) return;
+      const t = g.t, p = me.p || (me.p = {});
+      for (let i = 0; i < me.sail.length; i++) {
+        const b = me.sail[i], th = b.ph + t * b.w, s = b.s0 + Math.cos(th) * b.A, bk = me.bank(s);
+        const lat = clamp(bk[0] + b.off + Math.sin(th) * b.B, bk[0] + 2, bk[1] - 2.5);
+        api.P.at(s, p);
+        const ds = -Math.sin(th) * b.A * b.w, dl = Math.cos(th) * b.B * b.w; // where it is heading: along the way and across it
+        b.obj.position.set(p.x + p.nx * lat, 0, p.z + p.nz * lat);
+        b.obj.rotation.y = Math.atan2(p.tx * ds + p.nx * dl, p.tz * ds + p.nz * dl);
+      }
+      if (me.bal) me.bal.userData.rise = clamp((g.s - (L - 330)) / 250, 0, 1);
+      for (let i = 0; i < me.moving.length; i++) me.moving[i].userData.update(dt, t);
+    },
+  };
 })();

@@ -9,7 +9,10 @@
    group.userData = { kind, r (the radius it takes on the ground), h (height), update(dt, t) }.
    What stands still in a piece is one merged vertex-coloured mesh (one draw call); only what moves is separate.
    The world already draws the real footprints of the houses, the ponds and the lawns (ride-world.js): these pieces
-   are the close-up life on top. See the table at the bottom for kinds and options. */
+   are the close-up life on top. See the table further down for kinds and options.
+
+   The end of the file is the place itself, DU.RIDE_PLACE.sarona (the contract: places.js): its texts, icon and
+   arrival sound, a level made for this way, the welcome scene built from the pieces, and what moves in it. */
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
@@ -372,4 +375,109 @@
     return grp;
   };
   S.KINDS = Object.keys(MAKERS);
+
+  /* =====================================================================================
+     the place: DU.RIDE_PLACE.sarona (the contract is written at the top of places.js)
+     ===================================================================================== */
+  const LIVE = new WeakMap(); // the api of a ride → what this ride put up
+  const inPoly = (x, z, q) => { let c = false; for (let j = 0, k = q.length - 2; j < q.length; k = j, j += 2) if ((q[j + 1] > z) !== (q[k + 1] > z) && x < ((q[k] - q[j]) * (z - q[j + 1])) / (q[k + 1] - q[j + 1]) + q[j]) c = !c; return c; };
+  /* the stretches of the way where things may lie: not in a sharp corner (she cannot see behind it) nor right after
+     one, and not around a big crossing. → [[from, to], …], and .corners = the corners themselves (only stars go there) */
+  function stretches(api) {
+    const P = api.P, L = api.L, t = {}, corners = [], cr = api.data.cross || [];
+    const ang = (s) => { P.at(s, t); return Math.atan2(t.tx, t.tz); };
+    for (let s = 6; s < L - 6; s += 2) {
+      let d = Math.abs(ang(s + 4) - ang(s - 4));
+      if (d > PI) d = TAU - d;
+      if (d <= 0.55) continue;
+      const last = corners[corners.length - 1];
+      if (last && s - 14 <= last[1]) last[1] = s + 9; else corners.push([s - 14, s + 9]);
+    }
+    const cut = corners.concat(cr.map((c) => [c.s0 - 38, c.s1 + 12])).sort((a, b) => a[0] - b[0]);
+    const out = [];
+    let s = 64;
+    cut.forEach(([a, b]) => { if (a - s >= 26) out.push([s, a]); s = Math.max(s, b); });
+    if (L - 50 - s >= 26) out.push([s, L - 50]);
+    out.corners = corners.filter(([a, b]) => a > 40 && b < L - 50 && !cr.some((c) => b > c.s0 - 10 && a < c.s1 + 2));
+    return out;
+  }
+  const shuffled = (list, rnd) => { const a = list.slice(); for (let k = a.length - 1; k > 0; k--) { const j = (rnd() * (k + 1)) | 0; [a[k], a[j]] = [a[j], a[k]]; } return a; };
+
+  (DU.RIDE_PLACE = DU.RIDE_PLACE || {}).sarona = {
+    texts: { start: 'רוכבים לשרונה!', arrive: 'הגעת לשרונה!', row: 'הגעת לשרונה', arch: 'ברוכים הבאים לשרונה', archBack: 'כל הכבוד!' },
+    /* a Templer house: cream wall, red roof, a green door */
+    icon: '<svg class="du-ico" viewBox="0 0 48 48" aria-hidden="true"><g stroke="#4b3564" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9 43V23H39V43Z" fill="#fff3dc"/><path d="M4 24L24 7L44 24Z" fill="#ee6f57"/><path d="M20 43V32H28V43" fill="#5fa56b"/><rect x="12.500" y="28" width="5" height="6" rx="1" fill="#9fd0ea" stroke-width="2"/><rect x="30.500" y="28" width="5" height="6" rx="1" fill="#9fd0ea" stroke-width="2"/><circle cx="24" cy="17.500" r="2.400" fill="#fff" stroke-width="2"/></g></svg>',
+    /* arriving: a little music box */
+    sound(api) {
+      [1319, 1568, 2093, 1760, 1568, 2093, 2637].forEach((f, i) => api.tone(f, { at: i * 0.14, dur: 0.34, type: 'sine', vol: 0.085 }));
+      [523, 659].forEach((f, i) => api.tone(f, { at: i * 0.56, dur: 0.6, type: 'triangle', vol: 0.045 }));
+    },
+
+    /* the way to Sarona: quiet streets with parked cars, the path through the Dubnov garden, bike paths with two
+       big crossings, and the car-free street between the old houses. Each kind of stretch has its own things,
+       and the sharp corners stay empty. */
+    level(api) {
+      const kit = api.kit(), L = api.L, D = api.data, rnd = api.rnd, cr = D.cross || [];
+      const gardens = D.areas.filter((a) => a.k === 'park'), t = {};
+      const dest = D.streets.length ? D.streets[D.streets.length - 1][0] : L - 120; // where the garden of Sarona begins
+      const kindAt = (s) => { if (s < D.roadEnd) return 'street'; if (s >= dest - 6) return 'home'; api.P.at(s, t); return gardens.some((a) => inPoly(t.x, t.z, a.p)) ? 'garden' : 'path'; };
+      const lists = {
+        street: ['line', 'zig', 'cones', 'jumpstars', 'puddle'].concat(shuffled(['bins', 'scooter', 'cat', 'barrier', 'ball', 'bigstar', 'heart', 'cones', 'gem'], rnd)), // first what teaches her the tricks
+        garden: shuffled(['pigeons', 'ball', 'cat', 'bigstar', 'zig'], rnd),
+        path: shuffled(['cyclist', 'jumpstars', 'scooter', 'gem', 'puddle', 'zig', 'cones', 'bigstar'], rnd),
+        home: ['zig', 'heart', 'jumpstars', 'line'],
+      };
+      const used = { street: 0, garden: 0, path: 0, home: 0 };
+      kit.line(14, 5, 0); kit.line(36, 4, kit.lane()); // a quiet start
+      const free = stretches(api);
+      free.forEach(([a, b]) => {
+        const afterCross = cr.some((c) => a >= c.s1 && a - c.s1 < 80); // the first free stretch after an avenue
+        let s = a, first = true;
+        while (s + 26 <= b) {
+          const k = kindAt(s + 12), list = lists[k];
+          let name = list[used[k]++ % list.length];
+          if (first && afterCross && k === 'path' && b - s > 60) { name = 'walkers'; used[k]--; } // people on foot after a crossing
+          if (name === 'cyclist' && s + 44 > b) name = 'line'; // a cyclist comes from far ahead: only on a long stretch
+          kit.beat(name, s); first = false;
+          s += (name === 'walkers' ? 34 : 26) + rnd() * 5;
+        }
+      });
+      free.corners.forEach(([a, b]) => kit.line(a + 6, Math.max(2, Math.floor((b - a - 9) / 3.5)), 0, 3.5)); // a thread of stars through each corner
+      cr.forEach((c) => kit.line(c.s0 + 3, Math.max(3, Math.floor((c.s1 - c.s0 - 4) / 3.4) + 1), 0, 3.4)); // stars across each avenue
+      kit.line(L - 44, 10, 0, 3.2); // and a runway of stars under the bunting
+      return kit.items;
+    },
+
+    /* what waits there: bunting over the last metres, the welcome arch, a Templer house at the end of the way,
+       the lily pond and the lawn beside it, a cat on the path, butterflies; her friends */
+    scenery(api) {
+      const T = api.T, L = api.L, root = new T.Group(), moving = [];
+      root.name = 'sarona-welcome'; root.visible = false;
+      const keep = (o) => { root.add(o); if (o.userData.update && o.userData.update !== NOOP) moving.push(o); return o; };
+      const put = (kind, s, lat, opts, turn) => { const o = S.make(kind, opts); api.place(o, s, lat, 0, true, turn || 0); return keep(o); }; // its +Z looks at her as she comes
+      put('arch', L - 9, 0, { seed: 1, text: api.texts.arch, backText: api.texts.archBack });
+      put('bunting', L - 27, 0, { seed: 2, len: 11.2, h: 4.8 });
+      put('bunting', L - 41, 0, { seed: 3, len: 11.2, h: 4.8 });
+      put('house', L + 34, -3, { seed: 2, variant: 0 });
+      put('pond', L + 9, -15, { seed: 2 });
+      put('lawn', L + 20.5, -15, { seed: 1, w: 12, d: 9 });
+      put('bunting', L + 15, -15, { seed: 5, len: 8, h: 3.3 }, PI / 2);
+      // things from the common shelf: balloons on the first poles, a cat that sits and watches, butterflies over the flowers
+      [-1, 1].forEach((sg, i) => { const b = api.make('balloons', { seed: 3 + i, n: 4 }); api.place(b, L - 41, sg * 5.6, 4.85, true); keep(b); });
+      const cat = api.make('cat', { seed: 1, mode: 'sit' }); api.place(cat, L - 5.2, -4.5, 0, true, 0.5); keep(cat);
+      [[L - 9, -5.4, 0.7], [L - 9, 5.4, 0.8], [L + 5, -10.5, 1.0], [L + 16, -9.6, 0.9]].forEach(([s, lat, y], i) => { const b = api.make('butterfly', { seed: i + 1, y, radius: 0.9 }); api.place(b, s, lat, 0, true); keep(b); });
+      api.scene.add(root);
+      LIVE.set(api, { root, moving });
+      api.std.friends(api);
+    },
+
+    /* the welcome scene is far from most of the ride: it is shown, and moves, only when she is near */
+    update(dt, api) {
+      const me = LIVE.get(api);
+      if (!me) return;
+      const near = api.g.s > api.L - 420;
+      if (me.root.visible !== near) me.root.visible = near;
+      if (near) for (let i = 0; i < me.moving.length; i++) me.moving[i].userData.update(dt, api.g.t);
+    },
+  };
 })();
