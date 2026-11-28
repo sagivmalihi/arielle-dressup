@@ -1,4 +1,4 @@
-/* app.js — screens and interaction: home · pick a girl · editor · result · gallery · shop. */
+/* app.js — screens and interaction: home · pick a girl · editor · result · gallery · shop · where to ride. */
 (function () {
   'use strict';
   const DU = window.DU, S = DU.store, snd = DU.sound;
@@ -487,7 +487,7 @@
       'r-new'() { closeAll(); showPick(); },
       'r-edit'() { closeAll(); setPointsUI(); },
       'r-photo'() { photoModal(st); },
-      'r-ride'() { startRide(st); },
+      'r-ride'() { pickPlace(st); },
       'r-love'() {
         saveGallery(); saveWip(); snd.play('save'); confetti(90);
         if (DU.album) { try { DU.album.collect(st); } catch (e) { console.error(e); } }
@@ -638,9 +638,9 @@
         <h3>${esc((g.state.name || '').trim() || 'בלי שם')} <span dir="ltr" style="color:#a36b00">${starIco()} ${g.score || 0}</span></h3>
         <div class="preview-card">${DU.renderCard(g.state)}</div>
         <div class="row"><button class="btn" data-act="edit">${ico('pencil', '✏️')} לעצב אותה</button><button class="btn white" data-act="photo">${ico('camera', '📷')} תמונה</button><button class="btn white" data-act="del" aria-label="מחיקה">${ico('trash', '🗑️')}</button></div>
-        <div class="row"><button class="btn ride-go" data-act="ride">${ico('bike', '🚲')} לרכוב לבית הספר</button></div>
+        <div class="row"><button class="btn ride-go" data-act="ride">${ico('bike', '🚲')} לצאת לרכיבה</button></div>
       </div>`, {
-      ride() { startRide(g.state); },
+      ride() { pickPlace(g.state); },
       edit() {
         st = clone(g.state);
         if (!st.makeup) st.makeup = { blush: null, shadow: null, lips: null, sparkle: null };
@@ -723,38 +723,103 @@
     else { raf = 0; g.clearRect(0, 0, innerWidth, innerHeight); }
   }
 
-  /* ---------------- the bike ride to school (ride*.js, fetched only when she first rides) ---------------- */
-  const RIDE_FILES = ['lib/three.min.js', 'js/ride-data.js', 'js/ride-kit.js', 'js/ride-models.js', 'js/ride-world.js', 'js/ride-bike.js', 'js/ride-rider.js', 'js/ride.js', 'js/ride-garage.js'];
-  let rideFiles = null;
-  function loadRide() {
-    if (rideFiles) return rideFiles;
+  /* ---------------- the bike ride (ride*.js, fetched only when she first rides) ----------------
+     Every way into a ride opens the picker (pickPlace); a ride needs the common files and the files of
+     the place she rides to (places.js says which). Each file is fetched once. */
+  const RIDE_FILES = ['lib/three.min.js', 'js/ride-kit.js', 'js/ride-models.js', 'js/ride-world.js', 'js/ride-bike.js', 'js/ride-rider.js', 'js/ride.js', 'js/ride-garage.js'];
+  const rideFiles = {}; // file → Promise
+  function loadFile(f) {
+    if (rideFiles[f]) return rideFiles[f];
     const me = document.querySelector('script[src*="js/app.js"]');
     const v = ((me && me.getAttribute('src')) || '').replace(/^[^?]*/, '');
-    rideFiles = RIDE_FILES.reduce((p, f) => p.then(() => new Promise((ok, bad) => {
+    const p = (rideFiles[f] = new Promise((ok, bad) => {
       const s = document.createElement('script');
-      s.src = f + v; s.onload = ok; s.onerror = () => bad(new Error('could not load ' + f));
+      s.src = f + v; s.onload = ok; s.onerror = () => { s.remove(); bad(new Error('could not load ' + f)); };
       document.head.appendChild(s);
-    })), Promise.resolve());
-    rideFiles.catch(() => { rideFiles = null; });
-    return rideFiles;
+    }));
+    p.catch(() => { delete rideFiles[f]; }); // so the next try fetches it again
+    return p;
   }
-  function startRide(state) {
+  function loadRide(placeId) {
+    const place = placeId && DU.places.get(placeId);
+    return RIDE_FILES.concat(place ? place.files : []).reduce((p, f) => p.then(() => loadFile(f)), Promise.resolve());
+  }
+  /* placeId: where to (a place that is hers); left out = the place she chose last */
+  function startRide(state, placeId) {
     if (document.querySelector('.ride, .ride-load')) return;
     snd.unlock(); snd.play('pick');
+    const place = DU.places.open(placeId) ? placeId : DU.places.cur();
     const fromGarage = screen === 'garage';
     if (DU.garage) DU.garage.close(); // one 3D picture at a time
     const veil = document.createElement('div');
     veil.className = 'ride-load';
     veil.innerHTML = `<div class="ride-load-card"><div class="ride-wheel">${ico('bike', '🚲')}</div><b>מכינים את האופניים…</b></div>`;
     document.body.appendChild(veil);
-    loadRide().then(() => {
+    const home = () => { closeAll(); showHome(); setPointsUI(); };
+    loadRide(place).then(() => {
       DU.ride.start({
-        state: clone(state), bike: DU.bike.cur(), veil, run: S.data.rides || 0,
+        state: clone(state), bike: DU.bike.cur(), place, veil, run: S.data.rides || 0,
         onReward(n) { S.addPoints(n); S.data.rides = (S.data.rides || 0) + 1; S.save(true); },
-        onExit() { closeAll(); showHome(); setPointsUI(); },
+        onExit: home,
         onGarage() { closeAll(); showGarage(); },
+        onPlaces(s) { home(); pickPlace(s, true); },
+        // the door of the school: the screen inside it (DU.app.showSchool) is not part of this file
+        onSchool: typeof DU.app.showSchool === 'function' ? (s) => { home(); try { DU.app.showSchool(s); } catch (e) { console.error(e); } } : null,
       });
     }).catch((e) => { console.error(e); veil.remove(); toast('אוי, הרכיבה לא נטענה. ננסה שוב?'); if (fromGarage) showHome(); });
+  }
+
+  /* ---------------- "לאן רוכבים?" — she picks a place (places.js): hers → ride; locked → buy it with stars ---------------- */
+  function pickPlace(state, quiet) {
+    if (document.querySelector('.ride, .ride-load, .places')) return;
+    snd.unlock(); if (!quiet) snd.play('tap');
+    const PLC = DU.places;
+    const card = (p, fresh) => {
+      const own = PLC.owns(p.id), kind = !p.ready ? 'soon' : own ? 'open' : 'locked';
+      const tag = !p.ready ? `<span class="pl-tag soon">${ico('sparkle', '✨')} בקרוב</span>`
+        : own ? `<span class="pl-tag go">${ico('bike', '🚲')} לרכוב!</span>`
+        : `<span class="pl-tag price" dir="ltr">${ico('lock', '🔒')}${starIco()}<b>${p.price}</b></span>`;
+      return `<button class="pl-card ${kind}${fresh === p.id ? ' fresh' : ''}" data-act="place" data-id="${p.id}" aria-label="${esc(p.name)}${kind === 'soon' ? ' (בקרוב)' : ''}"><span class="pl-pic">${PLC.card(p.id)}</span><span class="pl-cap"><b>${esc(p.name)}</b>${tag}</span></button>`;
+    };
+    const html = (fresh) => `
+      <div class="places" dir="rtl">
+        <div class="pl-head"><h3>${ico('bike', '🚲')}<span>לאן רוכבים?</span></h3><div class="stars-pill">${starIco()} <span>${S.data.points}</span></div><button class="round-btn" data-act="close" aria-label="סגירה">${ico('close', '✕')}</button></div>
+        <div class="pl-grid">${PLC.LIST.map((p) => card(p, fresh)).join('')}</div>
+      </div>`;
+    const m = openModal(html(), {
+      place(el) {
+        const p = PLC.get(el.dataset.id); if (!p) return;
+        if (!p.ready) { // not built yet: a friendly "soon", nothing to buy
+          snd.play('tab'); toast('המקום הזה עוד בבנייה… בקרוב!');
+          el.classList.remove('nod'); void el.offsetWidth; el.classList.add('nod');
+          return;
+        }
+        if (PLC.owns(p.id)) { PLC.select(p.id); closeModal(m); startRide(state, p.id); return; }
+        buyPlace(p, () => { m.innerHTML = html(p.id); });
+      },
+    });
+    m.classList.add('places-back');
+  }
+  function buyPlace(p, onBought) {
+    snd.play('tap');
+    const pts = S.data.points, enough = pts >= p.price;
+    const m = openModal(`
+      <div class="modal pl-buy"><button class="x" data-act="close" aria-label="סגירה">✕</button>
+        <h3>${esc(p.name)}</h3>
+        <div class="pl-buy-pic">${DU.places.card(p.id)}</div>
+        ${enough
+          ? `<p>רוצה לפתוח את המקום הזה?</p><div class="row"><button class="btn big" data-act="buy-yes">לפתוח ב־<span dir="ltr">${starIco()} ${p.price}</span></button><button class="btn white" data-act="close">לא עכשיו</button></div>`
+          : `<p>חסרים לך עוד <b dir="ltr">${starIco()} ${p.price - pts}</b><br>כל רכיבה וכל דמות מביאות עוד כוכבים!</p><div class="row"><button class="btn white" data-act="close">בסדר</button></div>`}
+        <div class="note soft">יש לך <span dir="ltr">${starIco()} ${pts}</span></div>
+      </div>`, {
+      'buy-yes'() {
+        if (!DU.places.buy(p.id)) return;
+        snd.play('buy'); closeModal(m); confetti(90); setPointsUI();
+        toast('אפשר לרכוב ל' + p.name + '!');
+        if (onBought) onBought();
+      },
+    });
+    if (!enough) snd.play('locked');
   }
 
   /* ---------------- the bike workshop (ride-garage.js): she designs her bikes ---------------- */
@@ -785,7 +850,7 @@
     gallery() { snd.play('tap'); showGallery(); },
     shop() { snd.play('tap'); showShop(); },
     album() { snd.play('tap'); showAlbum(); },
-    ride() { const d = S.data; startRide(d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl()); },
+    ride() { const d = S.data; pickPlace(d.wip ? d.wip.state : d.gallery[0] ? d.gallery[0].state : demoGirl()); }, // her bike at home, and "לרכוב!" in the workshop
     garage() { snd.play('tap'); showGarage(); },
     gift() {
       const g = S.data.gift, root = app.firstElementChild;
@@ -875,6 +940,6 @@
 
   /* ---------------- go ---------------- */
   snd.setMuted(S.data.mute);
-  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, showGarage, startRound, finish, confetti, toast, confirm: confirmModal, startRide, get state() { return st; }, get round() { return round; }, actions };
+  DU.app = { showHome, showEditor, showPick, showGallery, showShop, showAlbum, showGarage, startRound, finish, confetti, toast, confirm: confirmModal, startRide, pickPlace, loadRide, get state() { return st; }, get round() { return round; }, actions };
   showHome();
 })();
