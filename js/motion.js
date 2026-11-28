@@ -1,6 +1,9 @@
 /* motion.js — moving a rigged character (DU.renderCard(state, { rig: true })) and small effects.
    Parts are moved by writing the SVG `transform` attribute (not CSS), so it behaves the same in
-   every browser. Each [data-part] group has its own origin at the joint, so "rotate(20)" just works. */
+   every browser. Each [data-part] group has its own origin at the joint, so "rotate(20)" just works.
+     DU.pose(root, pose, ms)    arms, head and lean · DU.strike(root, pose, o)  the same with her face, a hop, sparkles
+     DU.POSES / DU.POSE_LIST    the poses, and the ones she can choose from (with Hebrew names)
+     DU.safePose / DU.freePose  a pose for a girl whose hands are full */
 (function () {
   'use strict';
   const DU = (window.DU = window.DU || {});
@@ -41,7 +44,9 @@
      pose = { armL: [raise, bend], armR: [raise, bend], head: deg }
      raise: how far the whole arm lifts away from the body (0 hanging · 90 straight out · 150 up)
      bend:  the elbow; + bends the forearm outward / up, − inward (hand to the hip)
-     armL is the arm on the LEFT of the picture (it holds wands, cups…), armR the one on the right (bags). */
+     armL is the arm on the LEFT of the picture (it holds wands, cups…), armR the one on the right (bags).
+     A pose may also have: lean (deg, her whole body tips around her feet; + = to the right of the picture),
+     and, used by DU.strike only: eyes / mouth (ids from face.js), hop (how high), fx ('star' | 'heart'). */
   DU.POSES = {
     rest: {},
     hip: { armR: [40, -112], head: 4 },
@@ -51,10 +56,32 @@
     shy: { armL: [10, -34], armR: [10, -34], head: -7 },
     star: { armL: [96, 10], armR: [40, -112], head: 5 },
     show: { armL: [78, 28], head: -4 },
+    /* the poses of the class design show (school.js): each a different silhouette */
+    model: { armL: [40, -112], armR: [40, -112], head: -5, lean: -2, mouth: 'smirk' }, // both hands on her hips
+    hello: { armL: [70, 102], head: -5, lean: -3, eyes: 'happy', mouth: 'big' }, // a big wave
+    jump: { armL: [142, 18], armR: [142, 18], eyes: 'happy', mouth: 'big', hop: 34, fx: 'star' }, // arms up, and she hops
+    vee: { armR: [34, 138], head: 7, lean: 3, eyes: 'wink', mouth: 'grin' }, // a hand by her cheek, a wink
+    diva: { armL: [96, 10], armR: [40, -112], head: 5, lean: 2, mouth: 'big', fx: 'star' }, // one arm out, one on the hip
+    ballet: { armL: [136, 32], armR: [82, -30], head: 6, eyes: 'calm', mouth: 'smile' }, // one arm curved up, one curved out
+    love: { armL: [20, -150], armR: [20, -150], head: 6, eyes: 'happy', mouth: 'smile', fx: 'heart' }, // hands on her heart
+    plane: { armL: [84, 4], armR: [84, 4], head: 8, lean: 9, mouth: 'big' }, // arms out like wings, tipping over
+    strong: { armL: [88, 98], armR: [88, 98], mouth: 'grin' }, // showing her muscles
+    kiss: { armL: [38, 156], armR: [28, 18], head: -6, lean: -3, eyes: 'wink', mouth: 'kiss', fx: 'heart' }, // blows a kiss
+    curtsy: { armL: [32, 16], armR: [32, 16], head: 8, eyes: 'calm', mouth: 'smile' }, // holds her skirt out and bows her head
+    disco: { armL: [138, 0], armR: [34, 12], head: -5, lean: -5, mouth: 'big', fx: 'star' }, // one arm to the sky, one to the floor
   };
+  /* the poses she can choose from, with their names (school.js draws the strip from this) */
+  DU.POSE_LIST = [
+    { id: 'model', name: 'דוגמנית' }, { id: 'hello', name: 'שלום!' }, { id: 'jump', name: 'קפיצה' }, { id: 'vee', name: 'קריצה' },
+    { id: 'diva', name: 'כוכבת' }, { id: 'ballet', name: 'בלרינה' }, { id: 'love', name: 'לב' }, { id: 'plane', name: 'מטוס' },
+    { id: 'strong', name: 'חזקה' }, { id: 'kiss', name: 'נשיקה' }, { id: 'curtsy', name: 'קידה' }, { id: 'disco', name: 'דיסקו' },
+  ];
   const cur = new WeakMap(); // root → current numbers
-  const zero = () => ({ lr: 0, lb: 0, rr: 0, rb: 0, h: 0 });
-  const nums = (p) => ({ lr: (p.armL || [0, 0])[0], lb: (p.armL || [0, 0])[1], rr: (p.armR || [0, 0])[0], rb: (p.armR || [0, 0])[1], h: p.head || 0 });
+  const leanOf = new WeakMap(); // root → how far she leans now; only roots that were ever asked to lean are in it
+  const hopping = new WeakSet(); // roots in the middle of a hop (the hop writes the 'all' part then)
+  const upright = new WeakSet(); // roots whose 'front' part (the pet or the thing that stands next to her) does not lean with her
+  const zero = () => ({ lr: 0, lb: 0, rr: 0, rb: 0, h: 0, ln: 0 });
+  const nums = (p) => ({ lr: (p.armL || [0, 0])[0], lb: (p.armL || [0, 0])[1], rr: (p.armR || [0, 0])[0], rb: (p.armR || [0, 0])[1], h: p.head || 0, ln: p.lean || 0 });
   function applyPose(root, v) {
     [['l', -1, v.lr, v.lb], ['r', 1, v.rr, v.rb]].forEach(([side, s, raise, bend]) => {
       M.set(root, 'arm-' + side, raise ? `rotate(${n(-s * raise)})` : '');
@@ -64,11 +91,17 @@
     });
     M.set(root, 'head', v.h ? `rotate(${n(v.h)})` : '');
     M.set(root, 'hairback', v.h ? `rotate(${n(v.h)})` : '');
+    if (leanOf.has(root)) { // a girl who never leans is never touched here: the 'all' part stays with whoever moves it
+      leanOf.set(root, v.ln || 0);
+      if (!hopping.has(root)) M.set(root, 'all', v.ln ? `rotate(${n(v.ln)})` : '');
+      if (upright.has(root)) M.set(root, 'front', v.ln ? `rotate(${n(-v.ln)} 375 950)` : ''); // 375 950: her feet (rig.js)
+    }
   }
   /* move to a pose (name or object) in ms milliseconds. → Promise */
   DU.pose = function (root, pose, ms = 0, ease) {
     if (typeof pose === 'string') pose = DU.POSES[pose] || {};
-    const to = nums(pose || {}), from = cur.get(root) || zero();
+    const to = nums(pose || {}), from = Object.assign(zero(), cur.get(root));
+    if (to.ln && !leanOf.has(root)) leanOf.set(root, 0);
     const old = root._poseTween; if (old) old.cancel();
     const tw = M.tween(M.reduced() ? 0 : ms, (k) => {
       const v = {}; Object.keys(to).forEach((key) => (v[key] = from[key] + (to[key] - from[key]) * k));
@@ -85,14 +118,32 @@
     if (bagItem && p.armR && (p.armR[0] > 45 || Math.abs(p.armR[1]) > 60)) p.armR = [16, -12];
     return p;
   };
+  /* the same pose as she can strike it with full hands. An arm that holds something never swings (a thing in the
+     'hand' slot is in the arm on the left of the picture, a bag on the right one). A pose whose big arm is the busy one
+     moves to her free arm (the mirror picture); if that does not help, the busy arm just stays low. */
+  DU.freePose = function (state, pose) {
+    const p = Object.assign({}, typeof pose === 'string' ? DU.POSES[pose] || {} : pose || {});
+    const w = (state && state.wear) || {};
+    const busyL = !!(w.hand && DU.itemById[w.hand.id]), busyR = !!(w.bag && DU.itemById[w.bag.id]);
+    const big = (a) => !!a && (a[0] > 45 || Math.abs(a[1]) > 60);
+    const clash = (q) => (busyL && big(q.armL)) || (busyR && big(q.armR));
+    if (!clash(p)) return p;
+    const m = Object.assign({}, p, { armL: p.armR, armR: p.armL, head: -(p.head || 0), lean: -(p.lean || 0) });
+    if (!clash(m)) return m;
+    if (busyL && big(p.armL)) p.armL = [20, 12];
+    if (busyR && big(p.armR)) p.armR = [16, -12];
+    return p;
+  };
 
   /* a little hop with squash and stretch (the whole girl, origin at her feet) → Promise */
   M.hop = function (root, height = 26, ms = 420) {
     if (M.reduced()) return Promise.resolve();
+    const lean = () => { const a = leanOf.get(root); return a ? `rotate(${n(a)})` : ''; }; // she keeps leaning while she hops
+    hopping.add(root);
     return M.tween(ms, (e, k) => {
-      const up = Math.sin(k * Math.PI), sq = k < 0.12 ? 1 - k * 0.8 : k > 0.86 ? 1 - (1 - k) * 0.9 : 1 + up * 0.035;
-      M.set(root, 'all', `translate(0 ${n(-height * up)}) scale(${n(2 - sq)} ${n(sq)})`);
-    }, M.ease.lin).done.then(() => M.set(root, 'all', ''));
+      const up = Math.sin(k * Math.PI), sq = k < 0.12 ? 1 - k * 0.8 : k > 0.86 ? 1 - (1 - k) * 0.9 : 1 + up * 0.035, l = lean();
+      M.set(root, 'all', `translate(0 ${n(-height * up)}) ${l ? l + ' ' : ''}scale(${n(2 - sq)} ${n(sq)})`);
+    }, M.ease.lin).done.then(() => { hopping.delete(root); M.set(root, 'all', lean()); });
   };
   /* blink once */
   M.blink = function (root, ms = 150) {
@@ -143,5 +194,31 @@
         ).onfinish = () => e.remove();
       }
     },
+  };
+
+  /* ---------- strike a pose, with everything it has ----------
+     Arms, head and lean move as in DU.pose; her face changes with it (pose.eyes / pose.mouth, or back to her own);
+     she hops if the pose has a hop; a burst of stars or hearts opens around her head if it has an fx.
+     o = { ms, fxHost (a positioned element for the burst), quiet: true = no hop and no burst (just trying it on),
+           upright: true = what stands next to her (a pet, a snowman) stays straight when she leans. Not for a girl with
+           the parrot: it is drawn in the same part, and has to stay on her shoulder } → Promise */
+  DU.strike = function (root, pose, o = {}) {
+    if (typeof pose === 'string') pose = DU.POSES[pose] || {};
+    pose = pose || {};
+    if (o.upright) upright.add(root); else if (upright.delete(root)) M.set(root, 'front', '');
+    const done = DU.pose(root, pose, o.ms == null ? 380 : o.ms);
+    DU.setEyes(root, pose.eyes); DU.setMouth(root, pose.mouth);
+    if (o.quiet || M.reduced()) return done;
+    if (pose.hop) M.hop(root, pose.hop, 480);
+    const host = o.fxHost, head = pose.fx && host && root.querySelector('[data-part="head"]');
+    if (head) {
+      const a = host.getBoundingClientRect(), b = head.getBoundingClientRect();
+      if (a.width && b.width) {
+        const heart = pose.fx === 'heart';
+        DU.fx.burst(host, ((b.left + b.width / 2 - a.left) / a.width) * 100, ((b.top + b.height * 0.45 - a.top) / a.height) * 100,
+          { shape: heart ? 'heart' : 'star', count: 12, spread: (b.width / a.width) * 105, size: (b.width / a.width) * 20, colors: heart ? ['#ff5fa2', '#ff9ac1', '#ffffff', '#ffc1d9'] : undefined });
+      }
+    }
+    return done;
   };
 })();

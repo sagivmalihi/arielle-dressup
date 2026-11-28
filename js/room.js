@@ -1,7 +1,7 @@
 /* room.js — the home screen is her room.
    One illustration in a 1200×900 "scene" that is always fully visible (wall and floor bleed past it,
    so wider or taller screens just show more room), with real buttons laid over the things you can tap:
-   wardrobe → new character · the girl → continue · wall of frames → gallery · window → shop · her bike → the ride ·
+   wardrobe → new character · the girl → continue · wall of frames → gallery · window → shop · her bike → a ride (she picks where to) ·
    the tag on the bike → the bike workshop ·
    sticker book → album · gift box → a surprise · jar of stars → the points.
      DU.room.html(o)   o = { title, points, muted, hero, hasWip, gallery[≤5 states], gift, albumHave, albumTotal }
@@ -312,7 +312,7 @@
         <button class="room-hot room-wardrobe" data-act="new" style="${box(916, 160, 276, 560)}" aria-label="דמות חדשה">${tag(ico('sparkle') + 'דמות חדשה', 'big', off(120, 482, -3))}</button>
         <button class="room-hot room-jarbtn" type="button" style="${box(22, 44, 120, 140)}" aria-label="הכוכבים שלי"></button>
         <div class="room-pointswrap" style="${at(196, 128)}"><div class="stars-pill room-points">${ico('star')}<span>${Number(o.points) || 0}</span></div></div>
-        <button class="room-hot room-bike" data-act="ride" style="${box(34, 468, 236, 196)}" aria-label="לרכוב לבית הספר">${bikeSvg()}${tag(ico('bike') + 'לרכוב לבית הספר', 'sky', off(128, -4, -4))}</button>
+        <button class="room-hot room-bike" data-act="ride" style="${box(34, 468, 236, 196)}" aria-label="לצאת לרכיבה">${bikeSvg()}${tag(ico('bike') + 'לצאת לרכיבה', 'sky', off(128, -4, -4))}</button>
         ${DU.bike ? `<button class="room-hot room-garage" data-act="garage" style="${box(72, 330, 156, 80)}" aria-label="לעצב את האופניים">${tag(DU.bike.icon('wrench') + 'לעצב אופניים', 'rose', off(78, 40, 3))}</button>` : ''}
         ${o.gift ? `<button class="room-hot room-gift" data-act="gift" style="${box(92, 656, 164, 156)}" aria-label="הפתעה">${tag('הפתעה!', 'gold', off(116, -18, -6))}</button>` : ''}
         <div class="room-girl" style="${box(560 - 187.5, 838 - 912 * 0.5, 375, 500)}">${girl}</div>

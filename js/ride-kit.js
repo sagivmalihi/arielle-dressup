@@ -133,13 +133,20 @@
   };
 
   /* ---------- the route ----------
-     K.path(data) → { length, at(s, out) } ; at() gives the point at s metres from the start:
-     { x, z, tx, tz (unit direction of travel), nx, nz (unit vector to the RIGHT of travel) }.
-     A thing at "s metres along, lat metres to the right" is at (x + nx * lat, z + nz * lat). */
+     K.path(data) → { length, at(s, out), near(x, z), count, alt } ; at() gives the point at s metres from the start:
+     { x, z, tx, tz (unit direction of travel), nx, nz (unit vector to the RIGHT of travel), y, slope }.
+     A thing at "s metres along, lat metres to the right" is at (x + nx * lat, z + nz * lat).
+     Heights: data.alt (optional) holds one height in metres per route point. Then y is the height of the way at s
+     and slope its rise per metre along it (+ = uphill), and path.alt is true. s stays the distance on the map.
+     Without data.alt the way is flat: y = 0, slope = 0, path.alt = false. Beyond both ends it goes on level. */
   K.path = function (data) {
     const r = data.route, N = r.length / 2, cum = new Float32Array(N);
     for (let i = 1; i < N; i++) cum[i] = cum[i - 1] + Math.hypot(r[i * 2] - r[i * 2 - 2], r[i * 2 + 1] - r[i * 2 - 1]);
     const length = cum[N - 1];
+    const alt = data.alt && data.alt.length >= N ? data.alt : null;
+    if (data.alt && !alt) console.warn('rideKit.path: alt has', data.alt.length, 'heights for', N, 'route points; the way stays flat');
+    /* the slope at a route point: from its two neighbours, so it changes smoothly along the way */
+    const slopeAt = (i) => { const a = Math.max(0, i - 1), b = Math.min(N - 1, i + 1); return (alt[b] - alt[a]) / (cum[b] - cum[a] || 1); };
     const dirAt = (i) => {
       const a = Math.max(0, i - 1), b = Math.min(N - 1, i + 1);
       const dx = r[b * 2] - r[a * 2], dz = r[b * 2 + 1] - r[a * 2 + 1], l = Math.hypot(dx, dz) || 1;
@@ -157,6 +164,10 @@
       out.x = r[lo * 2] + (r[hi * 2] - r[lo * 2]) * k + tx * over;
       out.z = r[lo * 2 + 1] + (r[hi * 2 + 1] - r[lo * 2 + 1]) * k + tz * over;
       out.tx = tx; out.tz = tz; out.nx = -tz; out.nz = tx;
+      if (alt) {
+        out.y = alt[lo] + (alt[hi] - alt[lo]) * k;
+        if (over) out.slope = 0; else { const g0 = slopeAt(lo); out.slope = g0 + (slopeAt(hi) - g0) * k; }
+      } else { out.y = 0; out.slope = 0; }
       return out;
     }
     /* nearest point of the route to (x, z) → { s, lat (signed, + = right), d } */
@@ -167,7 +178,7 @@
       const lat = (x - p.x) * p.nx + (z - p.z) * p.nz, along = (x - p.x) * p.tx + (z - p.z) * p.tz;
       return { s: cum[bi] + along, lat, d: Math.sqrt(best) };
     }
-    return { length, at, near, count: N };
+    return { length, at, near, count: N, alt: !!alt };
   };
 
   /* ---------- little things ---------- */
@@ -183,6 +194,7 @@
     m.rotation.x = -Math.PI / 2;
     m.position.y = 0.03;
     m.renderOrder = 1;
+    m.userData.shadow = true; // on a sloping way the game tilts these to lie on it
     return m;
   };
   /* free the GPU memory of everything under obj */

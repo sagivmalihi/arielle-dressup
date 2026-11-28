@@ -1,5 +1,8 @@
-/* ride-world.js — the static 3D Tel Aviv for the bike ride (needs THREE + ride-kit.js + ride-data.js).
+/* ride-world.js — the static 3D Tel Aviv for the bike ride (needs THREE + ride-kit.js + the baked data of a place).
    DU.rideWorld.build(scene, data, { quality: 'high' | 'low' }) → world
+   data = DU.RIDE_DATA (the school) or any data of that shape that ends at data.end = { x, z, a } instead of
+   data.school. What belongs to the school (yard, fence and gate, name signs, the rainbow carpet) and to our house
+   is built only when the data has data.school / data.house; info.gate is there for both kinds.
      world.update(dt, t, camera)   sky follows the camera, clouds drift, flags and fountains move
      world.dispose()
      world.sunDir                  unit Vector3 from the ground toward the sun
@@ -257,11 +260,11 @@
     }
 
     /* buildings: keep the corridor free (move the few that sit too close), then index */
-    const school = data.areas[data.school.a];
+    const school = data.school ? data.areas[data.school.a] : null; // only the school's own data has one (other places end at data.end)
     const B = [];
     let dropped = 0, moved = 0;
     data.buildings.forEach((b, bi) => {
-      const o = { i: bi, k: b.k, h: b.h, base: b.b || 0, far: !!b.far, n: b.n, p: b.p.slice(), house: bi === data.house.b };
+      const o = { i: bi, k: b.k, h: b.h, base: b.b || 0, far: !!b.far, n: b.n, p: b.p.slice(), house: !!data.house && bi === data.house.b };
       if (!o.far) {
         // closest approach to the route
         let best = { d: 999 }, q = o.p;
@@ -518,7 +521,7 @@
       if (c.s0 - 6 > ps) pathBits.push([ps, c.s0 - 6]);
       ps = c.s1 + (c.s0 < ROAD_END + 6 ? 1.5 : 2);
     });
-    pathBits.push([ps, GATE_S]);
+    pathBits.push([ps, school ? GATE_S : LEN + 3]);
     pathBits.forEach(([a, b]) => {
       stripe(a, b, -3.8, 3.8, 0.095, C(PAL.bikeLane));
       stripe(a, b, -3.8, -3.6, 0.105, C(PAL.paint), L_paint);
@@ -526,9 +529,11 @@
       for (let s = a + 2; s < b - 2; s += 4) stripe(s, s + 1.6, -0.08, 0.08, 0.105, C(PAL.paint), L_paint);
     });
     // into the school: a rainbow carpet
-    for (let s = GATE_S, i = 0; s < LEN + 3; s += 1.5, i++) stripe(s, Math.min(LEN + 3, s + 1.5), -3.8, 3.8, 0.096, C(RAINBOW[i % RAINBOW.length]));
-    stripe(GATE_S, LEN + 3, -3.8, -3.6, 0.105, whiteC, L_paint);
-    stripe(GATE_S, LEN + 3, 3.6, 3.8, 0.105, whiteC, L_paint);
+    if (school) {
+      for (let s = GATE_S, i = 0; s < LEN + 3; s += 1.5, i++) stripe(s, Math.min(LEN + 3, s + 1.5), -3.8, 3.8, 0.096, C(RAINBOW[i % RAINBOW.length]));
+      stripe(GATE_S, LEN + 3, -3.8, -3.6, 0.105, whiteC, L_paint);
+      stripe(GATE_S, LEN + 3, 3.6, 3.8, 0.105, whiteC, L_paint);
+    }
     /* a painted bicycle + arrow, lying on the path, pointing along the ride */
     function bikeMark(s, lat) {
       at(s, lat, P1);
@@ -936,14 +941,18 @@
 
     /* ---------- the school ---------- */
     const info = { roadEnd: ROAD_END, parkLat: 5.0, kerbLat: KERB };
+    /* the end of the ride (data.end, or data.school): info.gate = where the route enters its area (22 m before the end when it has none) */
+    const dest = data.end || data.school, destArea = dest && dest.a !== undefined ? data.areas[dest.a] : null;
+    if (dest) {
+      let gs = GATE_S;
+      if (destArea) for (let s = Math.floor(LEN - 60); s < NS - 1; s++) if (!inPoly(RX[s], RZ[s], destArea.p) && inPoly(RX[s + 1], RZ[s + 1], destArea.p)) { gs = s + 0.5; break; }
+      path.at(gs, P1);
+      info.gate = { s: gs, x: P1.x, z: P1.z };
+    }
     if (school) {
       const q = school.p, n = q.length / 2;
       // where the route enters the yard
-      let gs = GATE_S;
-      for (let s = Math.floor(LEN - 60); s < NS - 1; s++) if (!inPoly(RX[s], RZ[s], q) && inPoly(RX[s + 1], RZ[s + 1], q)) { gs = s + 0.5; break; }
-      path.at(gs, P1);
-      const gx = P1.x, gz = P1.z;
-      info.gate = { s: gs, x: gx, z: gz };
+      const gs = info.gate.s, gx = info.gate.x, gz = info.gate.z;
       const GAPW = 5.6; // half width of the opening
       const FENCE = [PAL.pink, PAL.yellow, PAL.teal, PAL.purple, PAL.orange, PAL.green, PAL.blue];
       let pi = 0;
