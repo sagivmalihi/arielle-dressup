@@ -1,0 +1,91 @@
+/* places.css — "לאן רוכבים?": the postcards she picks a place from (pickPlace in app.js, drawn in places.js). */
+.places-back { padding: 12px; }
+.places {
+  width: min(100%, 1240px); max-height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 12px 18px 18px;
+  border-radius: 34px; border: 6px solid #fff; background: linear-gradient(170deg, #dff2ff 0%, #fff3fa 62%, #fff7df 100%);
+  box-shadow: 0 24px 60px rgba(60, 30, 90, .35); animation: rise .28s cubic-bezier(.3, 1.4, .5, 1);
+}
+.pl-head { flex: none; display: flex; align-items: center; gap: 10px; }
+.pl-head h3 { flex: 1; min-width: 0; margin: 0; display: flex; align-items: center; gap: 10px; font-size: clamp(24px, 3.4vw, 36px); font-weight: 900; color: var(--pink-d); text-shadow: 0 2px 0 #fff; white-space: nowrap; }
+.pl-head h3 .du-ico { font-size: 1.25em; flex: none; }
+.pl-head .round-btn .du-ico { font-size: .8em; }
+
+/* two rows of two; the grid is never wider than what lets both rows fit the height of the screen */
+.pl-grid {
+  --pic: 16 / 9; --ar: 1.7778;
+  flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; align-content: center;
+  width: min(100%, calc((var(--vh) - 276px) * var(--ar) + 40px)); margin: 0 auto; padding: 2px;
+}
+.pl-card {
+  position: relative; display: flex; flex-direction: column; min-width: 0; text-align: start; background: #fff; border: 5px solid #fff; border-radius: 26px; overflow: hidden;
+  box-shadow: 0 5px 0 #e3d3f3, 0 12px 22px rgba(120, 90, 160, .22); transition: transform .12s;
+}
+.pl-card:nth-child(4n + 1), .pl-card:nth-child(4n + 4) { transform: rotate(-.7deg); }
+.pl-card:nth-child(4n + 2), .pl-card:nth-child(4n + 3) { transform: rotate(.6deg); }
+.pl-card:active { transform: scale(.97); }
+.pl-pic { position: relative; display: block; aspect-ratio: var(--pic); border-radius: 20px 20px 0 0; overflow: hidden; background: #e6f5ff; }
+.pl-pic svg { display: block; width: 100%; height: 100%; }
+.pl-cap { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 54px; padding: 7px 12px 8px; }
+.pl-cap > b { min-width: 0; font-size: clamp(18px, 2.3vw, 26px); font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-tag { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 38px; padding: 0 14px; border-radius: 999px; font-weight: 900; font-size: 18px; white-space: nowrap; }
+.pl-tag .du-ico { font-size: 1.2em; }
+.pl-tag.go { background: #3aa7ff; color: #fff; box-shadow: 0 3px 0 #1f7fd0; }
+.pl-tag.price { background: #fff7d6; color: #a36b00; box-shadow: 0 3px 0 #f0d98a; }
+.pl-tag.soon { background: #f3eafb; color: var(--ink-soft); }
+
+/* a place that is not hers yet: a lock on the picture. One that is not built yet: the picture rests behind a mist */
+.pl-card.locked .pl-pic::after {
+  content: ''; position: absolute; top: 8px; inset-inline-start: 8px; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, .94) center / 58% no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg stroke='%234b3878' stroke-width='3.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M15 22V15a9 9 0 0 1 18 0v7' fill='none'/%3E%3Crect x='9' y='21' width='30' height='22' rx='6' fill='%23ffd24d'/%3E%3Cpath d='M24 29v6' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+  box-shadow: 0 3px 0 rgba(75, 53, 100, .18);
+}
+.pl-card.soon { box-shadow: 0 5px 0 #ebe2f3, 0 10px 18px rgba(120, 90, 160, .14); }
+.pl-card.soon .pl-pic svg { filter: saturate(.5) brightness(1.08); opacity: .62; }
+.pl-card.soon .pl-pic::after {
+  content: 'בקרוב'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-6deg); padding: 4px 22px 6px; border-radius: 999px;
+  background: rgba(255, 255, 255, .92); color: var(--purple-d); font-weight: 900; font-size: clamp(20px, 2.8vw, 30px); box-shadow: 0 4px 0 rgba(106, 79, 208, .22);
+}
+.pl-card.soon .pl-cap > b { color: var(--ink-soft); }
+.pl-card.nod { animation: pl-nod .45s; }
+@keyframes pl-nod { 25% { transform: rotate(-2.2deg); } 60% { transform: rotate(1.8deg); } }
+.pl-card.fresh { animation: pl-fresh 1.5s ease-out; }
+@keyframes pl-fresh { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 77, .95), 0 12px 22px rgba(120, 90, 160, .22); transform: scale(.96); } 30% { transform: scale(1.04); } 100% { box-shadow: 0 0 0 26px rgba(255, 210, 77, 0), 0 12px 22px rgba(120, 90, 160, .22); } }
+
+/* buying a place */
+.pl-buy { width: min(480px, 94vw); }
+.pl-buy-pic { width: min(380px, 100%); aspect-ratio: 16 / 10; margin: 0 auto 10px; border-radius: 22px; overflow: hidden; border: 5px solid #f3eafb; background: #e6f5ff; }
+.pl-buy .btn .du-ico { margin-inline-end: 2px; }
+
+/* a tall screen: squarer postcards, as wide as the screen lets them be */
+@media (orientation: portrait) {
+  .pl-grid { --pic: 5 / 4; --ar: 1.25; gap: 14px; }
+}
+/* a low, wide screen (a phone on its side, a small laptop window): the four in one row */
+@media (orientation: landscape) and (max-height: 640px) {
+  .places { gap: 8px; padding: 8px 14px 12px; border-radius: 28px; }
+  .pl-grid { --pic: 6 / 5; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: min(100%, calc((var(--vh) - 196px) * 4.8 + 76px)); }
+  .pl-cap { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; min-height: 0; padding: 6px 8px 8px; text-align: center; }
+  .pl-cap > b { font-size: clamp(15px, 2vw, 20px); }
+  .pl-tag { justify-content: center; height: 32px; font-size: 15px; padding: 0 8px; }
+  .pl-card.locked .pl-pic::after { width: 36px; height: 36px; top: 6px; inset-inline-start: 6px; }
+}
+@media (max-height: 420px) {
+  .places-back { padding: 6px; }
+  .pl-head .round-btn, .pl-head .stars-pill { height: 40px; }
+  .pl-head .round-btn { width: 40px; }
+  .pl-buy { padding: 14px 18px; }
+  .pl-buy h3 { font-size: 22px; margin-bottom: 6px; }
+  .pl-buy-pic { width: min(230px, 100%); margin-bottom: 4px; }
+  .pl-buy p { margin: 4px 0 6px; font-size: 16px; }
+  .pl-buy .row { margin-top: 6px; }
+  .pl-buy .btn.big { min-height: 50px; font-size: 20px; padding: 6px 22px; }
+}
+/* a narrow screen (a phone held upright): the name over its tag, so a long name is not cut */
+@media (max-width: 620px) {
+  .places { padding: 10px 10px 14px; }
+  .pl-grid { gap: 10px; }
+  .pl-cap { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; min-height: 0; padding: 6px 6px 8px; text-align: center; }
+  .pl-cap > b { font-size: clamp(14px, 4.4vw, 20px); }
+  .pl-tag { justify-content: center; height: 32px; font-size: 15px; padding: 0 8px; }
+  .pl-card.locked .pl-pic::after { width: 36px; height: 36px; top: 6px; inset-inline-start: 6px; }
+}
